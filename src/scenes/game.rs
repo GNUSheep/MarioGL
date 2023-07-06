@@ -12,6 +12,7 @@ struct Spirit {
     h: f32,
     w: f32,
     state: usize,
+    is_falling: bool,
     delay: i32,
     move_vel_x: i32,
     move_vel_y: i32,
@@ -49,6 +50,9 @@ impl Spirit {
         let texture3 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario-move3.png"));
         textures.push(texture3);
 
+        let texture_jump = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario-jump.png"));
+        textures.push(texture_jump);
+
         unsafe {
             obj.set_vertex_attrib_pointer(0, 
                 3, 
@@ -80,11 +84,12 @@ impl Spirit {
         let move_vel_x = 0;
         let move_vel_y = -1;
         let state = 0;
+        let is_falling = true;
         let delay = 0;
         let move_acc_y = 0.0;
         let flip = false;
          
-        Self{x, y, h, w, state, delay, move_vel_x, move_vel_y, move_acc_y, obj, textures, flip, program}
+        Self{x, y, h, w, state, is_falling, delay, move_vel_x, move_vel_y, move_acc_y, obj, textures, flip, program}
     }
 
     pub fn check_hitbox(&self, obj: &Block) -> &str {
@@ -103,7 +108,11 @@ impl Spirit {
 
     pub unsafe fn draw(&self) {
         self.program.set_active();
-        gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
+        if self.is_falling {
+            gl::BindTexture(gl::TEXTURE_2D, self.textures[4].texture);
+        }else {
+            gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
+        }
         gl::BindVertexArray(self.obj.vao);
         gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
     }
@@ -210,6 +219,7 @@ impl Game {
     }
 
     pub fn jump(&mut self) {
+        self.spirit.is_falling = true;
         if self.spirit.move_acc_y == 0.0 {
             self.spirit.move_acc_y = 2.0;
         }
@@ -225,15 +235,13 @@ impl Game {
 
     pub fn handle(&mut self, deltatime: u32) {
         // falling and jumping
-        let mut is_falling = true;
-
         for brick in self.bricks.iter() {
             if self.spirit.check_hitbox(brick) == "bottom" {
                 self.spirit.y = brick.y+brick.h+self.spirit.h;
                 if self.spirit.move_acc_y < 0 as f32 {
                     self.spirit.move_acc_y = 0.0;
                 }
-                is_falling = false;
+                self.spirit.is_falling = false;
             }
             else if self.spirit.check_hitbox(brick) == "top" {
                 self.spirit.y = brick.y-brick.h-self.spirit.w;
@@ -246,7 +254,7 @@ impl Game {
             }
         }
         
-        if is_falling {
+        if self.spirit.is_falling {
             self.spirit.move_acc_y -= 0.15;
         }
 
