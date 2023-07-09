@@ -1,5 +1,7 @@
 extern crate sdl2;
 
+use glm;
+
 mod background;
 
 use crate::render;
@@ -163,7 +165,7 @@ impl Block {
             );
         }
         
-        Self{x, y, w, h, obj, texture}
+        Self{x, y, w, h, obj, texture} 
     }
 
     pub unsafe fn draw(&self) {
@@ -176,7 +178,9 @@ impl Block {
 pub struct Game {
     bg: background::Background,
     bricks: Vec<Block>,
+    bricks_up: Vec<Block>,
     spirit: Spirit,
+    screen_move: f32,
 }
 
 impl Game {    
@@ -185,7 +189,7 @@ impl Game {
         let mut bricks: Vec<Block> = vec![];
     
         for j in 0..=1 {
-            for i in 0..=13 {
+            for i in 0..=20 {
                 let brick = Block::create(
                     -1.0+0.07421875+(0.1484375*i as f32), 
                     -1.0+0.07421875+(0.1484375*j as f32), 
@@ -197,14 +201,16 @@ impl Game {
             }
         }
         
+        let mut bricks_up: Vec<Block> = vec![];
+
         let brick = Block::create(
-            -1.0+0.07421875+(0.1484375*9 as f32), 
+        -1.0+0.07421875+(0.1484375*9 as f32), 
             -1.0+0.07421875+(0.1484375*2 as f32), 
             0.07421875, 
             0.07421875, 
             &Path::new("src/scenes/game/assets/images/stone_up.png"),
         );
-        bricks.push(brick);
+        bricks_up.push(brick);
         let brick = Block::create(
            -1.0+0.07421875+(0.1484375*5 as f32), 
             -1.0+0.07421875+(0.1484375*4 as f32), 
@@ -212,10 +218,12 @@ impl Game {
             0.07421875, 
             &Path::new("src/scenes/game/assets/images/stone_up.png"),
         );
-        bricks.push(brick);
+        bricks_up.push(brick);
+        
+        let screen_move = 0.0;
 
         let spirit = Spirit::create(0.0, 0.0, 0.0625, 0.0625, &Path::new("src/scenes/game/assets/images/mario-still.png"));
-        Self{bg, bricks, spirit}
+        Self{bg, bricks, bricks_up, spirit, screen_move}
     }
 
     pub fn jump(&mut self) {
@@ -234,8 +242,20 @@ impl Game {
     }
 
     pub fn handle(&mut self, deltatime: u32) {
-        // falling and jumping
+        // brick collison falling
+        self.spirit.is_falling = true;
+
         for brick in self.bricks.iter() {
+            if self.spirit.check_hitbox(brick) == "bottom" {
+                self.spirit.y = brick.y+brick.h+self.spirit.h;
+                if self.spirit.move_acc_y < 0 as f32 {
+                    self.spirit.move_acc_y = 0.0;
+                }
+                self.spirit.is_falling = false;
+            }
+        }
+        
+        for brick in self.bricks_up.iter() {
             if self.spirit.check_hitbox(brick) == "bottom" {
                 self.spirit.y = brick.y+brick.h+self.spirit.h;
                 if self.spirit.move_acc_y < 0 as f32 {
@@ -253,7 +273,7 @@ impl Game {
                 self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
             }
         }
-        
+
         if self.spirit.is_falling {
             self.spirit.move_acc_y -= 0.15;
         }
@@ -266,13 +286,9 @@ impl Game {
 
         self.spirit.y += (deltatime as f32)*0.001*self.spirit.move_acc_y;
         
-        // left screen side collison
-        if self.spirit.x-self.spirit.w <= -1.0 {
-            self.spirit.x = -1.0+self.spirit.w;
-        }
-
-        if self.spirit.x+self.spirit.w >= 1.0 {
-            self.spirit.x = 1.0-self.spirit.w;
+        //left screen side collison
+        if self.spirit.x-self.spirit.w <= -1.0-(self.screen_move) {
+            self.spirit.x = -1.0-(self.screen_move)+self.spirit.w;
         }
 
         // moving
@@ -300,6 +316,10 @@ impl Game {
             self.spirit.state = 1;
         }
 
+        if self.spirit.x >= 0.5-(self.screen_move) {
+            self.screen_move -= (deltatime as f32)*0.001; 
+        }
+
         unsafe {
             let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
             let move_vel = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
@@ -311,6 +331,24 @@ impl Game {
             self.spirit.program.set_active();
             gl::Uniform1i(flip, self.spirit.flip as i32);
         }
+
+        let mut view = glm::mat4(1.0, 0.0, 0.0, self.screen_move,
+                                 0.0, 1.0, 0.0, 0.0,
+                                 0.0, 0.0, 1.0, 0.0,
+                                 0.0, 0.0, 0.0, 1.0);
+        
+        unsafe {
+            let cname = std::ffi::CString::new("view").expect("CString::new failed");
+            let flip = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
+            self.spirit.program.set_active();
+            gl::UniformMatrix4fv(flip, 1, gl::FALSE, &view[0][0]);
+
+            let cname = std::ffi::CString::new("view").expect("CString::new failed");
+            let flip = gl::GetUniformLocation(self.bg.background_prog.program, cname.as_ptr());
+            self.bg.background_prog.set_active();
+            gl::UniformMatrix4fv(flip, 1, gl::FALSE, &view[0][0]);
+        }
+
     }
 
     pub unsafe fn draw(&self) {
@@ -320,6 +358,13 @@ impl Game {
                 brick.draw();
             }
         }
+
+        for brick in self.bricks_up.iter() {
+            unsafe {
+                brick.draw();
+            }
+        }
+        
         self.spirit.draw();
     }
 }
