@@ -17,7 +17,7 @@ fn main() {
     gl_attr.set_context_profile(GLProfile::Core);
     gl_attr.set_context_version(4, 6);
 
-    let window = video_subsystem.window("Runner", 256, 256).opengl().build().unwrap();
+    let window = video_subsystem.window("Runner", 256, 208).opengl().build().unwrap();
     
     let _ctx = window.gl_create_context().unwrap();
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
