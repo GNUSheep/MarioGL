@@ -2,8 +2,8 @@ extern crate sdl2;
 
 use glm;
 
-mod background;
 mod worlds;
+mod background;
 
 use crate::render;
 use std::path::Path;
@@ -128,6 +128,7 @@ pub struct Block {
     w: f32,
     obj: render::Object,
     texture: render::Texture,
+    program: render::Program,
 }
 
 impl Block {
@@ -148,6 +149,16 @@ impl Block {
 
         let texture = render::Texture::create_new_texture_from_file(&Path::new(path));
 
+        let vert_shader = render::Shader::vertex_from_src(
+            &CString::new(include_str!("game/assets/shaders/block.vert")).unwrap(),
+        ).unwrap();
+
+        let frag_shader = render::Shader::fragment_from_src(
+            &CString::new(include_str!("game/assets/shaders/block.frag")).unwrap(),
+        ).unwrap();
+
+        let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
+
         unsafe {
             obj.set_vertex_attrib_pointer(0, 
                 3, 
@@ -166,7 +177,7 @@ impl Block {
             );
         }
         
-        Self{x, y, w, h, obj, texture} 
+        Self{x, y, w, h, obj, texture, program} 
     }
 
     pub unsafe fn draw(&self) {
@@ -177,7 +188,6 @@ impl Block {
 }
 
 pub struct Game {
-    bg: background::Background,
     world: worlds::World,
     //bricks_up: Vec<Block>,
     spirit: Spirit,
@@ -185,9 +195,7 @@ pub struct Game {
 }
 
 impl Game {    
-    pub fn init() -> Self {
-        let bg = background::Background::init();
-        
+    pub fn init() -> Self {      
         let world = worlds::World::init();
 
         //let mut bricks_up: Vec<Block> = vec![];
@@ -212,7 +220,7 @@ impl Game {
         let screen_move = 0.0;
 
         let spirit = Spirit::create(0.0, 0.0, 16.0/208.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario-still.png"));
-        Self{bg, world, spirit, screen_move}
+        Self{world, spirit, screen_move}
     }
 
     pub fn jump(&mut self) {
@@ -234,15 +242,17 @@ impl Game {
         // brick collison falling
         self.spirit.is_falling = true;
 
-        for brick in self.world.tiles[0].floor.iter() {
-            if self.spirit.check_hitbox(brick) == "bottom" {
-                self.spirit.y = brick.y+brick.h+self.spirit.h;
-                if self.spirit.move_acc_y < 0 as f32 {
-                    self.spirit.move_acc_y = 0.0;
+        for tile in self.world.tiles.iter() {
+            for brick in tile.floor.iter() {
+                if self.spirit.check_hitbox(brick) == "bottom" {
+                    self.spirit.y = brick.y+brick.h+self.spirit.h;
+                    if self.spirit.move_acc_y < 0 as f32 {
+                        self.spirit.move_acc_y = 0.0;
+                    }
+                    self.spirit.is_falling = false;
                 }
-                self.spirit.is_falling = false;
             }
-        }
+        } 
         
         //for brick in self.bricks_up.iter() {
         //    if self.spirit.check_hitbox(brick) == "bottom" {
@@ -327,21 +337,28 @@ impl Game {
                                  0.0, 0.0, 0.0, 1.0);
         
         unsafe {
-            let cname = std::ffi::CString::new("view").expect("CString::new failed");
-            let flip = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
-            gl::UniformMatrix4fv(flip, 1, gl::FALSE, &view[0][0]);
+            for tile in self.world.tiles.iter() {
+                let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                let view_loc = gl::GetUniformLocation(tile.bg.background_prog.program, cname.as_ptr());
+                tile.bg.background_prog.set_active();
+                gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+                
+                let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                let view_loc = gl::GetUniformLocation(tile.floor[0].program.program, cname.as_ptr());
+                tile.floor[0].program.set_active();
+                gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+                
+            }
 
             let cname = std::ffi::CString::new("view").expect("CString::new failed");
-            let flip = gl::GetUniformLocation(self.bg.background_prog.program, cname.as_ptr());
-            self.bg.background_prog.set_active();
-            gl::UniformMatrix4fv(flip, 1, gl::FALSE, &view[0][0]);
+            let view_loc = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
+            self.spirit.program.set_active();
+            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
         }
 
     }
 
     pub unsafe fn draw(&self) {
-        self.bg.draw();
         self.world.draw();
 
         //for brick in self.bricks_up.iter() {

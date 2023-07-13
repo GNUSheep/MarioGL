@@ -11,7 +11,7 @@ pub struct Background {
 }
 
 impl Background {
-    pub fn init() -> Self {
+    pub fn init(x: f32, y: f32, h: f32, w: f32, which_bg: u32) -> Self {
         let vert_shader = render::Shader::vertex_from_src(
             &CString::new(include_str!("assets/shaders/background.vert")).unwrap(),
         ).unwrap();
@@ -23,10 +23,10 @@ impl Background {
         let background_prog = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
 
         let points: Vec<f32> = vec![
-            1.0, 1.0, 0.0, 1.0, 0.0,
-            1.0, -1.0, 0.0, 1.0, 1.0,
-            -1.0, -1.0, 0.0, 0.0, 1.0,
-            -1.0, 1.0, 0.0, 0.0, 0.0
+            x+w, y+h, 0.0, 1.0, 0.0,
+            x+w, y-h, 0.0, 1.0, 1.0,
+            x-w, y-h, 0.0, 0.0, 1.0,
+            x-w, y+h, 0.0, 0.0, 0.0
         ];
 
         const INDCIES: [i32; 6] = [
@@ -36,7 +36,14 @@ impl Background {
 
         let obj = render::Object::create_square_with_points(points, INDCIES);
 
-        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/background.png"));
+        let texture: render::Texture;
+        if which_bg == 1 {
+            texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/background.png"));
+        }else if which_bg == 2 {
+            texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/background2.png"));
+        }else {
+            texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/background3.png"));
+        }
 
         unsafe {
             obj.set_vertex_attrib_pointer(0, 
@@ -61,12 +68,6 @@ impl Background {
     }
 
     pub unsafe fn draw(&self) {
-        unsafe {
-            gl::ClearColor(0.384, 0.671, 0.831, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-        }
-
-        self.background_prog.set_active();
         gl::BindTexture(gl::TEXTURE_2D, self.texture.texture);
         gl::BindVertexArray(self.obj.vao);
         gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
