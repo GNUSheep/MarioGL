@@ -1,10 +1,12 @@
 use crate::scenes::game;
 use crate::scenes::game::background;
+use crate::scenes::game::objects;
 use std::path::Path;
 
 pub struct Tile {
-    pub floor: Vec<game::Block>,
     pub bg: background::Background,
+    pub floor: Vec<game::Block>,
+    pub objects: objects::Objects,
     move_by: f32,
     bg_index: u32,
     last_drawpos: i32,
@@ -32,7 +34,9 @@ impl Tile {
             }
         }
 
-        Self{floor, bg, move_by, bg_index, last_drawpos}
+        let mut objects = objects::Objects::init();
+
+        Self{bg, floor, objects, move_by, bg_index, last_drawpos}
     }
 
     unsafe fn draw(&self) {
@@ -43,6 +47,8 @@ impl Tile {
         for stone in self.floor.iter() {
             stone.draw()
         }
+
+        self.objects.draw()
     }
 }
 
@@ -56,8 +62,56 @@ impl World {
 
         let tile1 = Tile::create(1, 1, 1, 0.0);
         tiles.push(tile1);
-
-        let tile2 = Tile::create(tiles[0].last_drawpos+2, 2, 2, 2.0);
+        
+        let mut tile2 = Tile::create(tiles[0].last_drawpos+2, 2, 2, 2.0);
+        tile2.objects.create_question_mark_block(
+            -1.0+((16.0/256.0)*33 as f32), 
+            -1.0+((16.0/208.0)*11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile2.objects.create_block(
+            -1.0+((16.0/256.0)*41 as f32), 
+            -1.0+((16.0/208.0)*11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile2.objects.create_question_mark_block(
+            -1.0+((16.0/256.0)*43 as f32), 
+            -1.0+((16.0/208.0)*11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile2.objects.create_block(
+            -1.0+((16.0/256.0)*45 as f32), 
+            -1.0+((16.0/208.0)*11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile2.objects.create_question_mark_block(
+            -1.0+((16.0/256.0)*45 as f32), 
+            -1.0+((16.0/208.0)*19 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile2.objects.create_question_mark_block(
+            -1.0+((16.0/256.0)*47 as f32), 
+            -1.0+((16.0/208.0)*11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile2.objects.create_block(
+            -1.0+((16.0/256.0)*49 as f32), 
+            -1.0+((16.0/208.0)*11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile2.objects.create_pipe(
+            -1.0+((16.0/256.0)*58 as f32), 
+            -1.0+((16.0/208.0)*7 as f32),
+            16.0/208.0, 
+            32.0/256.0,
+        );
         tiles.push(tile2);
 
         let tile3 = Tile::create(tiles[1].last_drawpos+2, 3, 3, 4.0);

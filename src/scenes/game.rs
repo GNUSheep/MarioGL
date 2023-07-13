@@ -4,6 +4,7 @@ use glm;
 
 mod worlds;
 mod background;
+mod objects;
 
 use crate::render;
 use std::path::Path;
@@ -189,7 +190,6 @@ impl Block {
 
 pub struct Game {
     world: worlds::World,
-    //bricks_up: Vec<Block>,
     spirit: Spirit,
     screen_move: f32,
 }
@@ -197,25 +197,6 @@ pub struct Game {
 impl Game {    
     pub fn init() -> Self {      
         let world = worlds::World::init();
-
-        //let mut bricks_up: Vec<Block> = vec![];
-//
-        //let brick = Block::create(
-        //-1.0+0.07421875+(0.1484375*9 as f32), 
-        //    -1.0+0.07421875+(0.1484375*2 as f32), 
-        //    0.07421875, 
-        //    0.07421875, 
-        //    &Path::new("src/scenes/game/assets/images/stone_up.png"),
-        //);
-        //bricks_up.push(brick);
-        //let brick = Block::create(
-        //   -1.0+0.07421875+(0.1484375*5 as f32), 
-        //    -1.0+0.07421875+(0.1484375*4 as f32), 
-        //    0.07421875, 
-        //    0.07421875, 
-        //    &Path::new("src/scenes/game/assets/images/stone_up.png"),
-        //);
-        //bricks_up.push(brick);
         
         let screen_move = 0.0;
 
