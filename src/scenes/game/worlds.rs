@@ -13,7 +13,7 @@ pub struct Tile {
 }
 
 impl Tile {
-    fn create(last_pos: i32, add: i32, bg_index: u32, move_by: f32) -> Self {
+    fn create(last_pos: i32, add: i32, mut bg_index: u32, mut move_by: f32) -> Self {
         let bg = background::Background::init(move_by, 0.0, 1.0, 1.0, bg_index); 
 
         // Floor
@@ -34,7 +34,13 @@ impl Tile {
             }
         }
 
-        let mut objects = objects::Objects::init();
+        let objects = objects::Objects::init();
+
+        bg_index += 1;
+        if bg_index == 4 {
+            bg_index = 1;
+        }
+        move_by += 2.0;
 
         Self{bg, floor, objects, move_by, bg_index, last_drawpos}
     }
@@ -63,7 +69,7 @@ impl World {
         let tile1 = Tile::create(1, 1, 1, 0.0);
         tiles.push(tile1);
         
-        let mut tile2 = Tile::create(tiles[0].last_drawpos+2, 2, 2, 2.0);
+        let mut tile2 = Tile::create(tiles[0].last_drawpos+2, 2, tiles[0].bg_index, tiles[0].move_by);
         tile2.objects.create_question_mark_block(
             -1.0+((16.0/256.0)*33 as f32), 
             -1.0+((16.0/208.0)*11 as f32),
@@ -114,10 +120,10 @@ impl World {
         );
         tiles.push(tile2);
 
-        let tile3 = Tile::create(tiles[1].last_drawpos+2, 3, 3, 4.0);
+        let tile3 = Tile::create(tiles[1].last_drawpos+2, 3, tiles[1].bg_index, tiles[1].move_by);
         tiles.push(tile3);
 
-        let tile4 = Tile::create(tiles[2].last_drawpos+2, 4, 1, 6.0);
+        let tile4 = Tile::create(tiles[2].last_drawpos+2, 4, tiles[2].bg_index, tiles[2].move_by);
         tiles.push(tile4);
 
         Self{tiles}

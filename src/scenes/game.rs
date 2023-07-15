@@ -207,7 +207,7 @@ impl Game {
     pub fn jump(&mut self) {
         self.spirit.is_falling = true;
         if self.spirit.move_acc_y == 0.0 {
-            self.spirit.move_acc_y = 2.0;
+            self.spirit.move_acc_y = 2.5;
         }
     }
 
@@ -220,7 +220,7 @@ impl Game {
     }
 
     pub fn handle(&mut self, deltatime: u32) {
-        // brick collison falling
+        // floor collison system
         self.spirit.is_falling = true;
 
         for tile in self.world.tiles.iter() {
@@ -232,27 +232,17 @@ impl Game {
                     }
                     self.spirit.is_falling = false;
                 }
+                else if self.spirit.check_hitbox(brick) == "top" {
+                    self.spirit.y = brick.y-brick.h-self.spirit.w;
+                }
+                else if self.spirit.check_hitbox(brick) == "left" {
+                    self.spirit.x = brick.x+brick.w+self.spirit.w+0.01;
+                }
+                else if self.spirit.check_hitbox(brick) == "right" {
+                    self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
+                }
             }
-        } 
-        
-        //for brick in self.bricks_up.iter() {
-        //    if self.spirit.check_hitbox(brick) == "bottom" {
-        //        self.spirit.y = brick.y+brick.h+self.spirit.h;
-        //        if self.spirit.move_acc_y < 0 as f32 {
-        //            self.spirit.move_acc_y = 0.0;
-        //        }
-        //        self.spirit.is_falling = false;
-        //    }
-        //    else if self.spirit.check_hitbox(brick) == "top" {
-        //        self.spirit.y = brick.y-brick.h-self.spirit.w;
-        //    }
-        //    else if self.spirit.check_hitbox(brick) == "left" {
-        //        self.spirit.x = brick.x+brick.w+self.spirit.w+0.01;
-        //    }
-        //    else if self.spirit.check_hitbox(brick) == "right" {
-        //        self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
-        //    }
-        //}
+        }
 
         if self.spirit.is_falling {
             self.spirit.move_acc_y -= 0.15;
