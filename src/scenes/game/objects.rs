@@ -8,13 +8,14 @@ pub struct Pipe {
     y: f32,
     h: f32,
     w: f32,
+    pipe_len: usize,
     objects: Vec<render::Object>,
     textures: Vec<render::Texture>,
     program: render::Program,
 }
 
 impl Pipe {
-    fn create(x: f32, y: f32, h: f32, w: f32) -> Self {
+    fn create(x: f32, y: f32, h: f32, w: f32, pipe_len: usize) -> Self {
         const INDCIES: [i32; 6] = [
             0, 1, 2,
             2, 3, 0
@@ -54,30 +55,36 @@ impl Pipe {
         let obj = render::Object::create_square_with_points(points, INDCIES);
         textures.push(texture);
         objects.push(obj);
-        
-        let points: Vec<f32> = vec![
-            x+w, y-h, 0.0, 1.0, 0.0,
-            x+w, y-h-h-h, 0.0, 1.0, 1.0,
-            x, y-h-h-h, 0.0, 0.0, 1.0,
-            x, y-h, 0.0, 0.0, 0.0
-        ];
 
-        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_right.png"));
-        let obj = render::Object::create_square_with_points(points, INDCIES);
-        textures.push(texture);
-        objects.push(obj);
+        let mut offset = 1.0;
+        for i in (1..=pipe_len) {    
+            let points: Vec<f32> = vec![
+                x+w, y-(offset*h), 0.0, 1.0, 0.0,
+                x+w, y-((offset+2.0)*h), 0.0, 1.0, 1.0,
+                x, y-((offset+2.0)*h), 0.0, 0.0, 1.0,
+                x, y-(offset*h), 0.0, 0.0, 0.0
+            ];
 
-        let points: Vec<f32> = vec![
-            x-w, y-h, 0.0, 1.0, 0.0,
-            x-w, y-h-h-h, 0.0, 1.0, 1.0,
-            x, y-h-h-h, 0.0, 0.0, 1.0,
-            x, y-h, 0.0, 0.0, 0.0
-        ];
+            let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_right.png"));
+            let obj = render::Object::create_square_with_points(points, INDCIES);
+            textures.push(texture);
+            objects.push(obj);
 
-        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_left.png"));
-        let obj = render::Object::create_square_with_points(points, INDCIES);
-        textures.push(texture);
-        objects.push(obj);
+            
+            let points: Vec<f32> = vec![
+                x-w, y-(offset*h), 0.0, 1.0, 0.0,
+                x-w, y-((offset+2.0)*h), 0.0, 1.0, 1.0,
+                x, y-((offset+2.0)*h), 0.0, 0.0, 1.0,
+                x, y-(offset*h), 0.0, 0.0, 0.0
+            ];
+
+            let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_left.png"));
+            let obj = render::Object::create_square_with_points(points, INDCIES);
+            textures.push(texture);
+            objects.push(obj);
+            
+            offset += 2.0;
+        }
 
         unsafe {
             for obj in objects.iter() {
@@ -99,11 +106,11 @@ impl Pipe {
             }
         }
         
-        Self{x, y, w, h, objects, textures, program} 
+        Self{x, y, w, h, pipe_len, objects, textures, program} 
     }
 
     pub unsafe fn draw(&self) {
-        for i in 0..4 {
+        for i in 0..self.pipe_len*2+2 {
             gl::BindTexture(gl::TEXTURE_2D, self.textures[i].texture);
             gl::BindVertexArray(self.objects[i].vao);
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
@@ -192,8 +199,8 @@ impl Objects {
         Self{question_mark_blocks, blocks, pipes}
     }
 
-    pub fn create_pipe(&mut self, x: f32, y: f32, h: f32, w: f32) {
-        let block = Pipe::create(x, y, h, w);
+    pub fn create_pipe(&mut self, x: f32, y: f32, h: f32, w: f32, pipe_len: usize) {
+        let block = Pipe::create(x, y, h, w, pipe_len);
 
         self.pipes.push(block);
     }
