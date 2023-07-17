@@ -187,6 +187,265 @@ impl World {
         );
         tiles.push(tile5);
 
+        let floor_hole: Vec<i32> = vec![7, 8, 9, 23, 24, 25];
+
+        let mut tile6 = Tile::create(tiles[4].last_drawpos+2, 6, tiles[4].bg_index, tiles[4].move_by, floor_hole);
+        for i in (0..=7*2).step_by(2) {
+            tile6.objects.create_block(
+                -1.0+((16.0/256.0)*((161+i) as f32)), 
+                -1.0+((16.0/208.0)*19 as f32),
+                16.0/208.0, 
+                16.0/256.0,
+            );
+        }
+        for i in (0..=2*2).step_by(2) {
+            tile6.objects.create_block(
+                -1.0+((16.0/256.0)*((183+i) as f32)), 
+                -1.0+((16.0/208.0)*19 as f32),
+                16.0/208.0, 
+                16.0/256.0,
+            );
+        }
+        tile6.objects.create_question_mark_block(
+            -1.0+((16.0/256.0)*189 as f32), 
+            -1.0+((16.0/208.0)*19 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile6.objects.create_block(
+            -1.0+((16.0/256.0)*(189 as f32)), 
+            -1.0+((16.0/208.0)*11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tiles.push(tile6);
+
+        let floor_hole: Vec<i32> = vec![];
+
+        let mut tile7 = Tile::create(tiles[5].last_drawpos+2, 7, tiles[5].bg_index, tiles[5].move_by, floor_hole);
+        tile7.objects.create_block(
+            -1.0+(16.0/256.0)*(201 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile7.objects.create_block(
+            -1.0+(16.0/256.0)*(203 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile7.objects.create_question_mark_block(
+            -1.0+(16.0/256.0)*(213 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile7.objects.create_question_mark_block(
+            -1.0+(16.0/256.0)*(219 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile7.objects.create_question_mark_block(
+            -1.0+(16.0/256.0)*(219 as f32), 
+            -1.0+(16.0/208.0)*(19 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tiles.push(tile7);
+
+        let floor_hole: Vec<i32> = vec![];
+
+        let mut tile8 = Tile::create(tiles[6].last_drawpos+2, 8, tiles[6].bg_index, tiles[6].move_by, floor_hole);
+        tile8.objects.create_question_mark_block(
+            -1.0+(16.0/256.0)*(225 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile8.objects.create_block(
+            -1.0+(16.0/256.0)*(237 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile8.objects.create_block(
+            -1.0+(16.0/256.0)*(237 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        for i in (0..=2*2).step_by(2) {
+            tile8.objects.create_block(
+                -1.0+(16.0/256.0)*((243+i) as f32), 
+                -1.0+(16.0/208.0)*(19 as f32),
+                16.0/208.0, 
+                16.0/256.0,
+            );
+        }
+        tiles.push(tile8);
+
+        let floor_hole: Vec<i32> = vec![];
+
+        let mut tile9 = Tile::create(tiles[7].last_drawpos+2, 9, tiles[7].bg_index, tiles[7].move_by, floor_hole);
+        tile9.objects.create_block(
+            -1.0+(16.0/256.0)*(257 as f32), 
+            -1.0+(16.0/208.0)*(19 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile9.objects.create_question_mark_block(
+            -1.0+(16.0/256.0)*(259 as f32), 
+            -1.0+(16.0/208.0)*(19 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile9.objects.create_question_mark_block(
+            -1.0+(16.0/256.0)*(261 as f32), 
+            -1.0+(16.0/208.0)*(19 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile9.objects.create_block(
+            -1.0+(16.0/256.0)*(263 as f32), 
+            -1.0+(16.0/208.0)*(19 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile9.objects.create_block(
+            -1.0+(16.0/256.0)*(259 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile9.objects.create_block(
+            -1.0+(16.0/256.0)*(261 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        for i in (0..=(3*2)).step_by(2) {
+            for j in (0..=3*2-i).step_by(2) {
+                tile9.objects.create_stone(
+                    -1.0+(16.0/256.0)*((275-i) as f32), 
+                    -1.0+(16.0/208.0)*((5+j) as f32),
+                    16.0/208.0, 
+                    16.0/256.0,
+                );
+            }
+        }
+        for i in (0..=(3*2)).step_by(2) {
+            for j in (0..=3*2-i).step_by(2) {
+                tile9.objects.create_stone(
+                    -1.0+(16.0/256.0)*((281+i) as f32), 
+                    -1.0+(16.0/208.0)*((5+j) as f32),
+                    16.0/208.0, 
+                    16.0/256.0,
+                );
+            }
+        }
+        tiles.push(tile9);
+
+        let floor_hole: Vec<i32> = vec![10, 11, 26, 27];
+
+        let mut tile10 = Tile::create(tiles[8].last_drawpos+2, 10, tiles[8].bg_index, tiles[8].move_by, floor_hole);
+        for i in (0..=3*2).step_by(2) {
+            tile10.objects.create_stone(
+                -1.0+(16.0/256.0)*(305 as f32), 
+                -1.0+(16.0/208.0)*((5+i) as f32),
+                16.0/208.0, 
+                16.0/256.0,
+            );
+        }
+        for i in (0..=(3*2)).step_by(2) {
+            for j in (0..=3*2-i).step_by(2) {
+                tile10.objects.create_stone(
+                    -1.0+(16.0/256.0)*((303-i) as f32), 
+                    -1.0+(16.0/208.0)*((5+j) as f32),
+                    16.0/208.0, 
+                    16.0/256.0,
+                );
+            }
+        }
+
+        for i in (0..=(3*2)).step_by(2) {
+            for j in (0..=3*2-i).step_by(2) {
+                tile10.objects.create_stone(
+                    -1.0+(16.0/256.0)*((311+i) as f32), 
+                    -1.0+(16.0/208.0)*((5+j) as f32),
+                    16.0/208.0, 
+                    16.0/256.0,
+                );
+            }
+        }
+        tiles.push(tile10);
+
+        let floor_hole: Vec<i32> = vec![];
+
+        let mut tile11 = Tile::create(tiles[9].last_drawpos+2, 11, tiles[9].bg_index, tiles[9].move_by, floor_hole);
+        tile11.objects.create_pipe(
+            -1.0+(16.0/256.0)*(328 as f32), 
+            -1.0+(16.0/208.0)*(7 as f32),
+            16.0/208.0, 
+            32.0/256.0,
+            1,
+        );
+        tile11.objects.create_block(
+            -1.0+(16.0/256.0)*(337 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile11.objects.create_block(
+            -1.0+(16.0/256.0)*(339 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile11.objects.create_question_mark_block(
+            -1.0+(16.0/256.0)*(341 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tile11.objects.create_block(
+            -1.0+(16.0/256.0)*(343 as f32), 
+            -1.0+(16.0/208.0)*(11 as f32),
+            16.0/208.0, 
+            16.0/256.0,
+        );
+        tiles.push(tile11);
+
+        let floor_hole: Vec<i32> = vec![];
+
+        let mut tile12 = Tile::create(tiles[10].last_drawpos+2, 12, tiles[10].bg_index, tiles[10].move_by, floor_hole);
+        tile12.objects.create_pipe(
+            -1.0+(16.0/256.0)*(360 as f32), 
+            -1.0+(16.0/208.0)*(7 as f32),
+            16.0/208.0, 
+            32.0/256.0,
+            1,
+        );
+        for i in (0..=7*2).step_by(2) {
+            tile12.objects.create_stone(
+                -1.0+(16.0/256.0)*(379 as f32), 
+                -1.0+(16.0/208.0)*((5+i) as f32),
+                16.0/208.0, 
+                16.0/256.0,
+            );
+        }
+        for i in (0..=(8*2)).step_by(2) {
+            for j in (0..=7*2-i).step_by(2) {
+                tile12.objects.create_stone(
+                    -1.0+(16.0/256.0)*((377-i) as f32), 
+                    -1.0+(16.0/208.0)*((5+j) as f32),
+                    16.0/208.0, 
+                    16.0/256.0,
+                );
+            }
+        }
+        tiles.push(tile12);
         Self{tiles}
     }
 

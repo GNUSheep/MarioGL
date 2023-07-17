@@ -187,22 +187,30 @@ impl QuestionMarkBlock {
 pub struct Objects {
     pub question_mark_blocks: Vec<QuestionMarkBlock>,
     pub blocks: Vec<game::Block>,
+    pub stones: Vec<game::Block>,
     pub pipes: Vec<Pipe>,
 }
 
 impl Objects {
     pub fn init() -> Self {
         let question_mark_blocks: Vec<QuestionMarkBlock> = vec![];
-        let blocks: Vec<game::Block> = vec![];  
+        let blocks: Vec<game::Block> = vec![];
+        let stones: Vec<game::Block> = vec![];
         let pipes: Vec<Pipe> = vec![];
 
-        Self{question_mark_blocks, blocks, pipes}
+        Self{question_mark_blocks, blocks, stones, pipes}
     }
 
     pub fn create_pipe(&mut self, x: f32, y: f32, h: f32, w: f32, pipe_len: usize) {
         let block = Pipe::create(x, y, h, w, pipe_len);
 
         self.pipes.push(block);
+    }
+
+    pub fn create_stone(&mut self, x: f32, y: f32, h: f32, w: f32) {
+        let block = game::Block::create(x, y, h, w, &Path::new("src/scenes/game/assets/images/stone_up.png"));
+
+        self.stones.push(block);
     }
 
     pub fn create_block(&mut self, x: f32, y: f32, h: f32, w: f32) {
@@ -224,6 +232,10 @@ impl Objects {
 
         for block in self.blocks.iter() {
             block.draw();
+        }
+
+        for stone in self.stones.iter() {
+            stone.draw();
         }
 
         for question_mark_block in self.question_mark_blocks.iter() {
