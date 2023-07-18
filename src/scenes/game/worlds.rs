@@ -446,6 +446,20 @@ impl World {
             }
         }
         tiles.push(tile12);
+
+        let floor_hole: Vec<i32> = vec![];
+
+        let mut tile13 = Tile::create(tiles[11].last_drawpos+2, 13, tiles[11].bg_index, tiles[11].move_by, floor_hole);
+        tile13.objects.create_flag(
+            -1.0+(16.0/256.0)*(397 as f32), 
+            -1.0+(16.0/208.0)*(5 as f32),
+        );
+        tile13.objects.create_castle(
+            -1.0+(16.0/256.0)*(409 as f32), 
+            -1.0+(16.0/208.0)*(9 as f32),
+            "small",
+        );
+        tiles.push(tile13);
         Self{tiles}
     }
 
