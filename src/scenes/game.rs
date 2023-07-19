@@ -110,6 +110,20 @@ impl Spirit {
         return "nil"
     }
 
+    pub fn check_hitbox_question_mark_block(&self, obj: &objects::QuestionMarkBlock) -> &str {
+        let right: bool = self.x+self.w >= obj.x-obj.w;
+        let left: bool = obj.x+obj.w >= self.x-self.w;
+        let top: bool = self.y+self.h >= obj.y-obj.h;
+        let bottom: bool = obj.y+obj.h >= self.y-self.h;
+        if bottom && left && right && top {
+            if obj.y < self.y {return "bottom"}
+            if obj.y > self.y && (obj.x-obj.w < self.x && self.x < obj.x+obj.w) {return "top"}
+            if obj.x < self.x {return "left"}
+            if obj.x > self.x {return "right"};
+        }
+        return "nil"
+    }
+
     pub unsafe fn draw(&self) {
         self.program.set_active();
         if self.is_falling {
@@ -127,6 +141,7 @@ pub struct Block {
     y: f32,
     h: f32,
     w: f32,
+    acc_x: f32, 
     obj: render::Object,
     texture: render::Texture,
     program: render::Program,
@@ -178,7 +193,9 @@ impl Block {
             );
         }
         
-        Self{x, y, w, h, obj, texture, program} 
+        let acc_x = 0.0;
+
+        Self{x, y, w, h, acc_x, obj, texture, program} 
     }
 
     pub unsafe fn draw(&self) {
@@ -190,6 +207,7 @@ impl Block {
 
 pub struct Game {
     world: worlds::World,
+    objects_inmove: Vec<Block>,
     spirit: Spirit,
     screen_move: f32,
 }
@@ -199,9 +217,10 @@ impl Game {
         let world = worlds::World::init();
         
         let screen_move = 0.0;
-
+        let objects_inmove: Vec<Block> = vec![];
+    
         let spirit = Spirit::create(0.0, 0.0, 16.0/208.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario-still.png"));
-        Self{world, spirit, screen_move}
+        Self{world, objects_inmove, spirit, screen_move}
     }
 
     pub fn jump(&mut self) {
@@ -223,7 +242,8 @@ impl Game {
         // floor collison system
         self.spirit.is_falling = true;
 
-        for tile in self.world.tiles.iter() {
+        let mut objects_tomove: Vec<Block> = vec![];
+        for tile in self.world.tiles.iter_mut() {
             for brick in tile.floor.iter() {
                 if self.spirit.check_hitbox(brick) == "bottom" {
                     self.spirit.y = brick.y+brick.h+self.spirit.h;
@@ -241,6 +261,40 @@ impl Game {
                 else if self.spirit.check_hitbox(brick) == "right" {
                     self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
                 }
+            }
+
+            // Question mark box collision handling
+            for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
+                if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
+                    self.spirit.y = question_mark_block.y+question_mark_block.h+self.spirit.h;
+                    if self.spirit.move_acc_y < 0 as f32 {
+                        self.spirit.move_acc_y = 0.0;
+                    }
+                    self.spirit.is_falling = false;
+                }
+                else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "top" {
+                    self.spirit.y = question_mark_block.y-question_mark_block.h-self.spirit.w;
+                    question_mark_block.handler(&mut objects_tomove);
+                }
+                else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "left" {
+                    self.spirit.x = question_mark_block.x+question_mark_block.w+self.spirit.w+0.01;
+                }
+                else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "right" {
+                    self.spirit.x = question_mark_block.x-question_mark_block.w-self.spirit.w-0.01;
+                }
+            }
+        }
+        self.objects_inmove.extend(objects_tomove);
+
+        for obj in self.objects_inmove.iter_mut() {
+            if obj.acc_x != 0.0 {
+                obj.x -= obj.acc_x * ((deltatime as f32)*0.001);
+            }
+            unsafe {
+                let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                let move_vel = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                obj.program.set_active();
+                gl::Uniform2f(move_vel, obj.x, obj.y);
             }
         }
 
@@ -331,13 +385,12 @@ impl Game {
 
     pub unsafe fn draw(&self) {
         self.world.draw();
-
-        //for brick in self.bricks_up.iter() {
-        //    unsafe {
-         //       brick.draw();
-          //  }
-        //}
         
+        for objects in self.objects_inmove.iter() {
+            objects.program.set_active();
+            objects.draw();
+        }
+
         self.spirit.draw();
     }
 }

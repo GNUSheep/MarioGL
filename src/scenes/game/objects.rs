@@ -35,7 +35,7 @@ impl Flag {
         let h = 16.0/208.0;
         let w = 16.0/256.0;
         let mut offset = 1.0;
-        for i in (0..=8){
+        for _i in 0..=8 {
             let points: Vec<f32> = vec![
                 x+w, y+(offset*h), 0.0, 1.0, 0.0,
                 x+w, y+((offset+2.0)*h), 0.0, 1.0, 1.0,
@@ -166,7 +166,7 @@ impl Pipe {
         objects.push(obj);
 
         let mut offset = 1.0;
-        for i in (1..=pipe_len) {    
+        for _i in 1..=pipe_len {    
             let points: Vec<f32> = vec![
                 x+w, y-(offset*h), 0.0, 1.0, 0.0,
                 x+w, y-((offset+2.0)*h), 0.0, 1.0, 1.0,
@@ -228,17 +228,18 @@ impl Pipe {
 }
 
 pub struct QuestionMarkBlock {
-    x: f32,
-    y: f32,
-    h: f32,
-    w: f32,
+    pub x: f32,
+    pub y: f32,
+    pub h: f32,
+    pub w: f32,
+    pub collision_event: bool,
     obj: render::Object,
     texture: render::Texture,
     program: render::Program,
 }
 
 impl QuestionMarkBlock {
-    pub fn create(x: f32, y: f32, h: f32, w: f32) -> Self {
+    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool) -> Self {
         let points: Vec<f32> = vec![
             x+w, y+h, 0.0, 1.0, 0.0,
             x+w, y-h, 0.0, 1.0, 1.0,
@@ -282,9 +283,32 @@ impl QuestionMarkBlock {
                 (3 * std::mem::size_of::<f32>()) as *const c_void, 
             );
         }
-        
-        Self{x, y, w, h, obj, texture, program} 
+
+        Self{x, y, w, h, collision_event, obj, texture, program} 
     }
+
+    pub fn handler(&mut self, objects: &mut Vec<game::Block>) {
+        if self.collision_event {
+            let mut obj = game::Block::create(self.x, self.y+2.0*self.h, self.h, self.w, &Path::new("src/scenes/game/assets/images/mushroom.png"));
+
+            let vert_shader = render::Shader::vertex_from_src(
+                &CString::new(include_str!("assets/shaders/mushroom.vert")).unwrap(),
+            ).unwrap();
+    
+            let frag_shader = render::Shader::fragment_from_src(
+                &CString::new(include_str!("assets/shaders/mushroom.frag")).unwrap(),
+            ).unwrap();
+    
+            let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
+
+            obj.program = program;
+
+            obj.acc_x = 1.0;
+            objects.push(obj);
+        }
+        self.texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/brick-still.png"));
+        self.collision_event = false;
+    } 
 
     pub unsafe fn draw(&self) {
         gl::BindTexture(gl::TEXTURE_2D, self.texture.texture);
@@ -315,7 +339,7 @@ impl Objects {
     }
 
     pub fn create_castle(&mut self, x: f32, y: f32, size: &str) {
-        let mut block: game::Block;
+        let block: game::Block;
         if size == "small" {
             block = game::Block::create(x, y, 80.0/208.0, 80.0/256.0, &Path::new("src/scenes/game/assets/images/castle_small.png"));
         }else {
@@ -349,8 +373,8 @@ impl Objects {
         self.blocks.push(block);
     }
 
-    pub fn create_question_mark_block(&mut self, x: f32, y: f32, h: f32, w: f32) {
-        let block = QuestionMarkBlock::create(x, y, h, w);
+    pub fn create_question_mark_block(&mut self, x: f32, y: f32, h: f32, w: f32, collision_event: bool) {
+        let block = QuestionMarkBlock::create(x, y, h, w, collision_event);
 
         self.question_mark_blocks.push(block);
     }

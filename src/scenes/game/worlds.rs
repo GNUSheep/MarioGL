@@ -1,4 +1,3 @@
-use crate::render;
 use crate::scenes::game;
 use crate::scenes::game::background;
 use crate::scenes::game::objects;
@@ -87,6 +86,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*41 as f32), 
@@ -99,6 +99,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            true,
         );
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*45 as f32), 
@@ -111,12 +112,14 @@ impl World {
             -1.0+((16.0/208.0)*19 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile2.objects.create_question_mark_block(
             -1.0+((16.0/256.0)*47 as f32), 
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*49 as f32), 
@@ -178,6 +181,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile5.objects.create_block(
             -1.0+((16.0/256.0)*159 as f32), 
@@ -211,6 +215,7 @@ impl World {
             -1.0+((16.0/208.0)*19 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile6.objects.create_block(
             -1.0+((16.0/256.0)*(189 as f32)), 
@@ -240,18 +245,21 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile7.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(219 as f32), 
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile7.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(219 as f32), 
             -1.0+(16.0/208.0)*(19 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tiles.push(tile7);
 
@@ -263,6 +271,7 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile8.objects.create_block(
             -1.0+(16.0/256.0)*(237 as f32), 
@@ -300,12 +309,14 @@ impl World {
             -1.0+(16.0/208.0)*(19 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile9.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(261 as f32), 
             -1.0+(16.0/208.0)*(19 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile9.objects.create_block(
             -1.0+(16.0/256.0)*(263 as f32), 
@@ -408,6 +419,7 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile11.objects.create_block(
             -1.0+(16.0/256.0)*(343 as f32), 
