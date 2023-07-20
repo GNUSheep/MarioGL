@@ -51,10 +51,11 @@ fn main() {
                 _ => {},
             }
         }
-        
-        if left {game.move_x("left")};
-        if right {game.move_x("right")};
-        if up {game.jump()};
+        if !game.spirit.is_dead {
+            if left {game.move_x("left")};
+            if right {game.move_x("right")};
+            if up {game.jump()};
+        }
 
         unsafe{game.draw()};
         window.gl_swap_window();

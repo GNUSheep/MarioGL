@@ -10,16 +10,18 @@ use crate::render;
 use std::path::Path;
 use std::ffi::{CString, c_void};
 
-struct Spirit {
+pub struct Spirit {
     x: f32,
     y: f32,
     h: f32,
     w: f32,
     state: usize,
     is_falling: bool,
+    pub is_dead: bool,
+    is_moving: i32,
+    is_turn: bool,
     delay: i32,
     move_vel_x: i32,
-    move_vel_y: i32,
     move_acc_y: f32,
     obj: render::Object,
     textures: Vec<render::Texture>,
@@ -47,14 +49,17 @@ impl Spirit {
 
         let texture0 = render::Texture::create_new_texture_from_file(path);
         textures.push(texture0);
-        let texture1 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario-move1.png"));
+        let texture1 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_move1.png"));
         textures.push(texture1);
-        let texture2 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario-move2.png"));
+        let texture2 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_move2.png"));
         textures.push(texture2);
-        let texture3 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario-move3.png"));
+        let texture3 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_move3.png"));
         textures.push(texture3);
 
-        let texture_jump = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario-jump.png"));
+        let texture_turn = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_turn.png"));
+        textures.push(texture_turn);
+
+        let texture_jump = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_jump.png"));
         textures.push(texture_jump);
 
         unsafe {
@@ -86,14 +91,16 @@ impl Spirit {
         let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
 
         let move_vel_x = 0;
-        let move_vel_y = -1;
         let state = 0;
         let is_falling = true;
+        let is_dead = false;
+        let is_moving = 0;
+        let is_turn = false;
         let delay = 0;
         let move_acc_y = 0.0;
         let flip = false;
          
-        Self{x, y, h, w, state, is_falling, delay, move_vel_x, move_vel_y, move_acc_y, obj, textures, flip, program}
+        Self{x, y, h, w, state, is_falling, is_dead, is_moving, is_turn, delay, move_vel_x, move_acc_y, obj, textures, flip, program}
     }
 
     pub fn check_hitbox(&self, obj: &Block) -> &str {
@@ -112,8 +119,8 @@ impl Spirit {
 
     pub unsafe fn draw(&self) {
         self.program.set_active();
-        if self.is_falling {
-            gl::BindTexture(gl::TEXTURE_2D, self.textures[4].texture);
+        if self.is_falling && !self.is_dead {
+            gl::BindTexture(gl::TEXTURE_2D, self.textures[5].texture);
         }else {
             gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
         }
@@ -190,8 +197,9 @@ impl Block {
 
 pub struct Game {
     world: worlds::World,
-    spirit: Spirit,
+    pub spirit: Spirit,
     screen_move: f32,
+    is_over: bool,
 }
 
 impl Game {    
@@ -199,9 +207,10 @@ impl Game {
         let world = worlds::World::init();
         
         let screen_move = 0.0;
+        let is_over = false;
 
-        let spirit = Spirit::create(0.0, 0.0, 16.0/208.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario-still.png"));
-        Self{world, spirit, screen_move}
+        let spirit = Spirit::create(0.0, 0.0, 16.0/208.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
+        Self{world, spirit, screen_move, is_over}
     }
 
     pub fn jump(&mut self) {
@@ -216,6 +225,21 @@ impl Game {
             self.spirit.move_vel_x = 1;
         }else{
             self.spirit.move_vel_x = -1;
+        }
+    }
+
+    fn dead(&mut self) {
+        let texture_dead = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_dead.png"));
+        self.spirit.textures.push(texture_dead);
+        self.spirit.move_acc_y = 5.0;
+        self.spirit.is_dead = true;
+    }
+
+    fn over(&mut self) {
+        self.is_over = true;
+        unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
         }
     }
 
@@ -248,12 +272,6 @@ impl Game {
             self.spirit.move_acc_y -= 0.15;
         }
 
-        if self.spirit.move_acc_y > 0.0 {
-            self.spirit.move_vel_y = 1;
-        }else {
-            self.spirit.move_vel_y = -1;
-        }
-
         self.spirit.y += (deltatime as f32)*0.001*self.spirit.move_acc_y;
         
         //left screen side collison
@@ -261,33 +279,54 @@ impl Game {
             self.spirit.x = -1.0-(self.screen_move)+self.spirit.w;
         }
 
-        // moving
+        if self.spirit.y-self.spirit.h <= -1.0 && !self.spirit.is_dead {
+            self.dead();
+        }else if self.spirit.y-self.spirit.h <= -1.0 && self.spirit.is_dead {
+            self.over();
+        }
 
+        // moving
         if self.spirit.move_vel_x != 0 {
             if self.spirit.move_vel_x == 1 {
                 self.spirit.flip = true;
             }else {
                 self.spirit.flip = false;
             }
+
+            if self.spirit.is_moving != 0 && self.spirit.is_moving != self.spirit.move_vel_x {
+                self.spirit.state = 4;
+                self.spirit.is_turn = true;
+            }
+            self.spirit.is_moving = self.spirit.move_vel_x;
+
             self.spirit.x -= self.spirit.move_vel_x  as f32 * ((deltatime as f32)*0.001);
             self.spirit.delay += 1;
         }else{
+            self.spirit.is_moving = 0;
             self.spirit.state = 0;
         }
         self.spirit.move_vel_x = 0;
 
         // animation
-        if self.spirit.delay == 5 {
+        if self.spirit.delay == 5  {
             self.spirit.state += 1;
             self.spirit.delay = 0;
+            if self.spirit.is_turn {
+                self.spirit.state = 1;
+                self.spirit.is_turn = false;
+            }
         }
 
-        if self.spirit.state == 4 {
+        if self.spirit.state == 4 && !self.spirit.is_turn {
             self.spirit.state = 1;
         }
 
         if self.spirit.x >= 0.5-(self.screen_move) {
             self.screen_move -= (deltatime as f32)*0.001; 
+        }
+
+        if self.spirit.is_dead {
+            self.spirit.state = self.spirit.textures.len()-1;
         }
 
         unsafe {
@@ -330,14 +369,9 @@ impl Game {
     }
 
     pub unsafe fn draw(&self) {
-        self.world.draw();
-
-        //for brick in self.bricks_up.iter() {
-        //    unsafe {
-         //       brick.draw();
-          //  }
-        //}
-        
-        self.spirit.draw();
+        if !self.is_over {
+            self.world.draw();
+            self.spirit.draw();
+        }
     }
 }
