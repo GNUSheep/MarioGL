@@ -30,7 +30,7 @@ impl Flag {
         let mut textures: Vec<render::Texture> = vec![];
         let mut objects: Vec<render::Object> = vec![];
 
-        let stone = game::Block::create(x, y, 16.0/208.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/stone_up.png"));
+        let stone = game::Block::create(x, y, 16.0/208.0, 16.0/256.0, false, &Path::new("src/scenes/game/assets/images/stone_up.png"), "flag");
         
         let h = 16.0/208.0;
         let w = 16.0/256.0;
@@ -317,9 +317,9 @@ impl Objects {
     pub fn create_castle(&mut self, x: f32, y: f32, size: &str) {
         let mut block: game::Block;
         if size == "small" {
-            block = game::Block::create(x, y, 80.0/208.0, 80.0/256.0, &Path::new("src/scenes/game/assets/images/castle_small.png"));
+            block = game::Block::create(x, y, 80.0/208.0, 80.0/256.0, false, &Path::new("src/scenes/game/assets/images/castle_small.png"), "castle");
         }else {
-            block = game::Block::create(x, y, 80.0/208.0, 80.0/256.0, &Path::new("src/scenes/game/assets/images/castle_large.png"));
+            block = game::Block::create(x, y, 80.0/208.0, 80.0/256.0, false, &Path::new("src/scenes/game/assets/images/castle_large.png"), "castle");
         }
 
         self.castle.push(block);
@@ -338,13 +338,13 @@ impl Objects {
     }
 
     pub fn create_stone(&mut self, x: f32, y: f32, h: f32, w: f32) {
-        let block = game::Block::create(x, y, h, w, &Path::new("src/scenes/game/assets/images/stone_up.png"));
+        let block = game::Block::create(x, y, h, w, false, &Path::new("src/scenes/game/assets/images/stone_up.png"), "stone");
 
         self.stones.push(block);
     }
 
-    pub fn create_block(&mut self, x: f32, y: f32, h: f32, w: f32) {
-        let block = game::Block::create(x, y, h, w, &Path::new("src/scenes/game/assets/images/brick.png"));
+    pub fn create_block(&mut self, x: f32, y: f32, h: f32, w: f32, collision_event: bool) {
+        let block = game::Block::create(x, y, h, w, collision_event, &Path::new("src/scenes/game/assets/images/brick.png"), "block");
 
         self.blocks.push(block);
     }

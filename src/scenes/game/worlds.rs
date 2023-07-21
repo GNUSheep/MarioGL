@@ -33,7 +33,9 @@ impl Tile {
                         -1.0+((16.0/208.0)*j as f32), 
                         16.0/208.0, 
                         16.0/256.0,
+                        false,
                         &Path::new("src/scenes/game/assets/images/stone.png"),
+                        "block",
                     );
                     floor.push(stone);
                 }
@@ -93,6 +95,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            true,
         );
         tile2.objects.create_question_mark_block(
             -1.0+((16.0/256.0)*43 as f32), 
@@ -105,6 +108,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile2.objects.create_question_mark_block(
             -1.0+((16.0/256.0)*45 as f32), 
@@ -123,6 +127,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile2.objects.create_pipe(
             -1.0+((16.0/256.0)*58 as f32), 
@@ -172,6 +177,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile5.objects.create_question_mark_block(
             -1.0+((16.0/256.0)*157 as f32), 
@@ -184,6 +190,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tiles.push(tile5);
 
@@ -196,6 +203,7 @@ impl World {
                 -1.0+((16.0/208.0)*19 as f32),
                 16.0/208.0, 
                 16.0/256.0,
+                false,
             );
         }
         for i in (0..=2*2).step_by(2) {
@@ -204,6 +212,7 @@ impl World {
                 -1.0+((16.0/208.0)*19 as f32),
                 16.0/208.0, 
                 16.0/256.0,
+                false,
             );
         }
         tile6.objects.create_question_mark_block(
@@ -217,6 +226,7 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tiles.push(tile6);
 
@@ -228,12 +238,14 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile7.objects.create_block(
             -1.0+(16.0/256.0)*(203 as f32), 
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile7.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(213 as f32), 
@@ -269,12 +281,14 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile8.objects.create_block(
             -1.0+(16.0/256.0)*(237 as f32), 
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         for i in (0..=2*2).step_by(2) {
             tile8.objects.create_block(
@@ -282,6 +296,7 @@ impl World {
                 -1.0+(16.0/208.0)*(19 as f32),
                 16.0/208.0, 
                 16.0/256.0,
+                false,
             );
         }
         tiles.push(tile8);
@@ -294,6 +309,7 @@ impl World {
             -1.0+(16.0/208.0)*(19 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile9.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(259 as f32), 
@@ -312,18 +328,21 @@ impl World {
             -1.0+(16.0/208.0)*(19 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile9.objects.create_block(
             -1.0+(16.0/256.0)*(259 as f32), 
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile9.objects.create_block(
             -1.0+(16.0/256.0)*(261 as f32), 
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         for i in (0..=(3*2)).step_by(2) {
             for j in (0..=3*2-i).step_by(2) {
@@ -396,12 +415,14 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile11.objects.create_block(
             -1.0+(16.0/256.0)*(339 as f32), 
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tile11.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(341 as f32), 
@@ -414,6 +435,7 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
+            false,
         );
         tiles.push(tile11);
 

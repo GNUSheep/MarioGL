@@ -134,13 +134,17 @@ pub struct Block {
     y: f32,
     h: f32,
     w: f32,
+    move_acc_y: f32,
+    collision_event: bool,
+    name: String,
+    state: usize,
     obj: render::Object,
-    texture: render::Texture,
+    textures: Vec<render::Texture>,
     program: render::Program,
 }
 
 impl Block {
-    pub fn create(x: f32, y: f32, h: f32, w: f32, path: &Path) -> Self {
+    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool, path: &Path, name: &str) -> Self {
         let points: Vec<f32> = vec![
             x+w, y+h, 0.0, 1.0, 0.0,
             x+w, y-h, 0.0, 1.0, 1.0,
@@ -154,8 +158,9 @@ impl Block {
         ];
 
         let obj = render::Object::create_square_with_points(points, INDCIES);
-
         let texture = render::Texture::create_new_texture_from_file(&Path::new(path));
+
+        let textures: Vec<render::Texture> = vec![texture];
 
         let vert_shader = render::Shader::vertex_from_src(
             &CString::new(include_str!("game/assets/shaders/block.vert")).unwrap(),
@@ -164,7 +169,7 @@ impl Block {
         let frag_shader = render::Shader::fragment_from_src(
             &CString::new(include_str!("game/assets/shaders/block.frag")).unwrap(),
         ).unwrap();
-
+        
         let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
 
         unsafe {
@@ -185,11 +190,31 @@ impl Block {
             );
         }
         
-        Self{x, y, w, h, obj, texture, program} 
+        let name = "block".to_string();
+        let state = 0;
+        let move_acc_y = 0.0;
+
+        Self{x, y, w, h, move_acc_y, collision_event, name, state, obj, textures, program} 
+    }
+
+    pub fn handle(&mut self, objects: &mut Vec<Block>) {
+        if self.collision_event {
+            let mut block = Block::create(self.x, self.y+2.0*self.h, self.h, 8.0/256.0, true, &Path::new("src/scenes/game/assets/images/coin1.png"), "coin");
+
+            block.name = "coin".to_string();
+            block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin2.png")));
+            block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin3.png")));
+            block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin4.png")));
+            block.move_acc_y = 1.0;
+
+            objects.push(block);
+        }
+        self.textures[0] = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/brick-still.png"));
+        self.collision_event = false;
     }
 
     pub unsafe fn draw(&self) {
-        gl::BindTexture(gl::TEXTURE_2D, self.texture.texture);
+        gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
         gl::BindVertexArray(self.obj.vao);
         gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
     }
@@ -198,6 +223,8 @@ impl Block {
 pub struct Game {
     world: worlds::World,
     pub spirit: Spirit,
+    object_still: Vec<Block>,
+    delay: i32,
     screen_move: f32,
     is_over: bool,
 }
@@ -208,15 +235,17 @@ impl Game {
         
         let screen_move = 0.0;
         let is_over = false;
+        let object_still: Vec<Block> = vec![];
+        let delay = 0;
 
         let spirit = Spirit::create(0.0, 0.0, 16.0/208.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
-        Self{world, spirit, screen_move, is_over}
+        Self{world, spirit, object_still, delay, screen_move, is_over}
     }
 
     pub fn jump(&mut self) {
         self.spirit.is_falling = true;
         if self.spirit.move_acc_y == 0.0 {
-            self.spirit.move_acc_y = 2.5;
+            self.spirit.move_acc_y = 3.0;
         }
     }
 
@@ -244,10 +273,10 @@ impl Game {
     }
 
     pub fn handle(&mut self, deltatime: u32) {
-        // floor collison system
+        // floor collision system
         self.spirit.is_falling = true;
 
-        for tile in self.world.tiles.iter() {
+        for tile in self.world.tiles.iter_mut() {
             for brick in tile.floor.iter() {
                 if self.spirit.check_hitbox(brick) == "bottom" {
                     self.spirit.y = brick.y+brick.h+self.spirit.h;
@@ -266,15 +295,60 @@ impl Game {
                     self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
                 }
             }
+
+            for block in tile.objects.blocks.iter_mut() {
+                if self.spirit.check_hitbox(block) == "bottom" {
+                    self.spirit.y = block.y+block.h+self.spirit.h;
+                    if self.spirit.move_acc_y < 0 as f32 {
+                        self.spirit.move_acc_y = 0.0;
+                    }
+                    self.spirit.is_falling = false;
+                }
+                else if self.spirit.check_hitbox(block) == "top" {
+                    self.spirit.y = block.y-block.h-self.spirit.w;
+
+                    block.handle(&mut self.object_still);
+                }
+                else if self.spirit.check_hitbox(block) == "left" {
+                    self.spirit.x = block.x+block.w+self.spirit.w+0.01;
+                }
+                else if self.spirit.check_hitbox(block) == "right" {
+                    self.spirit.x = block.x-block.w-self.spirit.w-0.01;
+                }
+            }
         }
 
+
+        // still objects animations and collision
+        let mut index = 0; 
+        let mut indexes_to_remove: Vec<usize> = vec![];
+        for obj in self.object_still.iter_mut() {   
+            if obj.name == "coin".to_string() {
+                if self.delay >= 8 {
+                    obj.state += 1;
+                    if obj.state == 4 {
+                        obj.state = 0;
+                    }
+                    self.delay = 0;
+                }
+            }
+            index += 1;
+        }
+
+        for index in indexes_to_remove {
+            self.object_still.remove(index);
+        }
+
+        index = 0;
+        self.delay += 1;
+        
         if self.spirit.is_falling {
             self.spirit.move_acc_y -= 0.15;
         }
 
         self.spirit.y += (deltatime as f32)*0.001*self.spirit.move_acc_y;
         
-        //left screen side collison
+        //left screen side collision
         if self.spirit.x-self.spirit.w <= -1.0-(self.screen_move) {
             self.spirit.x = -1.0-(self.screen_move)+self.spirit.w;
         }
@@ -371,7 +445,11 @@ impl Game {
     pub unsafe fn draw(&self) {
         if !self.is_over {
             self.world.draw();
+            for obj in self.object_still.iter() {
+                obj.draw();
+            }
             self.spirit.draw();
+
         }
     }
 }
