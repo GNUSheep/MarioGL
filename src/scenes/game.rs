@@ -117,6 +117,20 @@ impl Spirit {
         return "nil"
     }
 
+    pub fn check_hitbox_question_mark_block(&self, obj: &objects::QuestionMarkBlock) -> &str {
+        let right: bool = self.x+self.w >= obj.x-obj.w;
+        let left: bool = obj.x+obj.w >= self.x-self.w;
+        let top: bool = self.y+self.h >= obj.y-obj.h;
+        let bottom: bool = obj.y+obj.h >= self.y-self.h;
+        if bottom && left && right && top {
+            if obj.y < self.y {return "bottom"}
+            if obj.y > self.y && (obj.x-obj.w < self.x && self.x < obj.x+obj.w) {return "top"}
+            if obj.x < self.x {return "left"}
+            if obj.x > self.x {return "right"};
+        }
+        return "nil"
+    }
+
     pub unsafe fn draw(&self) {
         self.program.set_active();
         if self.is_falling && !self.is_dead {
@@ -135,6 +149,7 @@ pub struct Block {
     h: f32,
     w: f32,
     move_acc_y: f32,
+    move_acc_x: f32,
     collision_event: bool,
     name: String,
     state: usize,
@@ -193,8 +208,9 @@ impl Block {
         let name = "block".to_string();
         let state = 0;
         let move_acc_y = 0.0;
+        let move_acc_x = 0.0;
 
-        Self{x, y, w, h, move_acc_y, collision_event, name, state, obj, textures, program} 
+        Self{x, y, w, h, move_acc_y, move_acc_x, collision_event, name, state, obj, textures, program} 
     }
 
     pub fn handle(&mut self, objects: &mut Vec<Block>) {
@@ -223,7 +239,8 @@ impl Block {
 pub struct Game {
     world: worlds::World,
     pub spirit: Spirit,
-    object_still: Vec<Block>,
+    objects_still: Vec<Block>,
+    objects_inmove: Vec<Block>,
     delay: i32,
     screen_move: f32,
     is_over: bool,
@@ -235,11 +252,12 @@ impl Game {
         
         let screen_move = 0.0;
         let is_over = false;
-        let object_still: Vec<Block> = vec![];
+        let objects_still: Vec<Block> = vec![];
+        let objects_inmove: Vec<Block> = vec![];
         let delay = 0;
 
         let spirit = Spirit::create(0.0, 0.0, 16.0/208.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
-        Self{world, spirit, object_still, delay, screen_move, is_over}
+        Self{world, spirit, objects_still, objects_inmove, delay, screen_move, is_over}
     }
 
     pub fn jump(&mut self) {
@@ -299,30 +317,40 @@ impl Game {
             for block in tile.objects.blocks.iter_mut() {
                 if self.spirit.check_hitbox(block) == "bottom" {
                     self.spirit.y = block.y+block.h+self.spirit.h;
+                }else if self.spirit.check_hitbox(block) == "top" {
+                    self.spirit.y = block.y-block.h-self.spirit.w;
+
+                    block.handle(&mut self.objects_still);
+                }else if self.spirit.check_hitbox(block) == "left" {
+                    self.spirit.x = block.x+block.w+self.spirit.w+0.01;
+                }else if self.spirit.check_hitbox(block) == "right" {
+                    self.spirit.x = block.x-block.w-self.spirit.w-0.01;
+                }
+            }
+            
+            // Question mark box collision handling
+            for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
+                if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
+                    self.spirit.y = question_mark_block.y+question_mark_block.h+self.spirit.h;
                     if self.spirit.move_acc_y < 0 as f32 {
                         self.spirit.move_acc_y = 0.0;
                     }
                     self.spirit.is_falling = false;
-                }
-                else if self.spirit.check_hitbox(block) == "top" {
-                    self.spirit.y = block.y-block.h-self.spirit.w;
-
-                    block.handle(&mut self.object_still);
-                }
-                else if self.spirit.check_hitbox(block) == "left" {
-                    self.spirit.x = block.x+block.w+self.spirit.w+0.01;
-                }
-                else if self.spirit.check_hitbox(block) == "right" {
-                    self.spirit.x = block.x-block.w-self.spirit.w-0.01;
+                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "top" {
+                    self.spirit.y = question_mark_block.y-question_mark_block.h-self.spirit.w;
+                    question_mark_block.handler(&mut self.objects_inmove);
+                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "left" {
+                    self.spirit.x = question_mark_block.x+question_mark_block.w+self.spirit.w+0.01;
+                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "right" {
+                    self.spirit.x = question_mark_block.x-question_mark_block.w-self.spirit.w-0.01;
                 }
             }
         }
 
-
         // still objects animations and collision
         let mut index = 0; 
         let mut indexes_to_remove: Vec<usize> = vec![];
-        for obj in self.object_still.iter_mut() {   
+        for obj in self.objects_still.iter_mut() {   
             if obj.name == "coin".to_string() {
                 if self.delay >= 8 {
                     obj.state += 1;
@@ -336,7 +364,7 @@ impl Game {
         }
 
         for index in indexes_to_remove {
-            self.object_still.remove(index);
+            self.objects_still.remove(index);
         }
 
         index = 0;
@@ -445,11 +473,13 @@ impl Game {
     pub unsafe fn draw(&self) {
         if !self.is_over {
             self.world.draw();
-            for obj in self.object_still.iter() {
+            for obj in self.objects_still.iter() {
+                obj.draw();
+            }
+            for obj in self.objects_inmove.iter() {
                 obj.draw();
             }
             self.spirit.draw();
-
         }
     }
 }
