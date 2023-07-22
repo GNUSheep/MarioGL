@@ -88,7 +88,8 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*41 as f32), 
@@ -103,6 +104,7 @@ impl World {
             16.0/208.0, 
             16.0/256.0,
             true,
+            "mushroom".to_string(),
         );
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*45 as f32), 
@@ -116,14 +118,16 @@ impl World {
             -1.0+((16.0/208.0)*19 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile2.objects.create_question_mark_block(
             -1.0+((16.0/256.0)*47 as f32), 
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*49 as f32), 
@@ -187,7 +191,8 @@ impl World {
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "mushroom".to_string(),
         );
         tile5.objects.create_block(
             -1.0+((16.0/256.0)*159 as f32), 
@@ -224,15 +229,17 @@ impl World {
             -1.0+((16.0/208.0)*19 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile6.objects.create_block(
             -1.0+((16.0/256.0)*(189 as f32)), 
             -1.0+((16.0/208.0)*11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
         );
+        tile6.objects.blocks[11].collision_num = 10;
         tiles.push(tile6);
 
         let floor_hole: Vec<i32> = vec![];
@@ -250,28 +257,32 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
         );
+        tile7.objects.blocks[1].collision_name = "star".to_string();
         tile7.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(213 as f32), 
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "mushroom".to_string(),
         );
         tile7.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(219 as f32), 
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile7.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(219 as f32), 
             -1.0+(16.0/208.0)*(19 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tiles.push(tile7);
 
@@ -283,7 +294,8 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile8.objects.create_block(
             -1.0+(16.0/256.0)*(237 as f32), 
@@ -325,14 +337,16 @@ impl World {
             -1.0+(16.0/208.0)*(19 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile9.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(261 as f32), 
             -1.0+(16.0/208.0)*(19 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile9.objects.create_block(
             -1.0+(16.0/256.0)*(263 as f32), 
@@ -440,7 +454,8 @@ impl World {
             -1.0+(16.0/208.0)*(11 as f32),
             16.0/208.0, 
             16.0/256.0,
-            false,
+            true,
+            "coin".to_string(),
         );
         tile11.objects.create_block(
             -1.0+(16.0/256.0)*(343 as f32), 

@@ -233,13 +233,17 @@ pub struct QuestionMarkBlock {
     pub h: f32,
     pub w: f32,
     pub collision_event: bool,
+    pub collision_name: String,
+    pub state: usize,
+    pub delay: i32,
+    pub is_hit: bool,
     obj: render::Object,
-    texture: render::Texture,
+    textures: Vec<render::Texture>,
     program: render::Program,
 }
 
 impl QuestionMarkBlock {
-    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool) -> Self {
+    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool, collision_name: String) -> Self {
         let points: Vec<f32> = vec![
             x+w, y+h, 0.0, 1.0, 0.0,
             x+w, y-h, 0.0, 1.0, 1.0,
@@ -254,7 +258,14 @@ impl QuestionMarkBlock {
 
         let obj = render::Object::create_square_with_points(points, INDCIES);
 
-        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/question_mark_block.png"));
+        let mut textures: Vec<render::Texture> = vec![];
+    
+        let texture1 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/question_mark_block1.png"));
+        textures.push(texture1);
+        let texture2 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/question_mark_block2.png"));
+        textures.push(texture2);
+        let texture3 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/question_mark_block3.png"));
+        textures.push(texture3);
 
         let vert_shader = render::Shader::vertex_from_src(
             &CString::new(include_str!("assets/shaders/block.vert")).unwrap(),
@@ -284,34 +295,52 @@ impl QuestionMarkBlock {
             );
         }
 
-        Self{x, y, w, h, collision_event, obj, texture, program} 
+        let state = 0;
+        let delay = 0;
+        let is_hit = false;
+
+        Self{x, y, w, h, collision_event, collision_name, state, delay, is_hit, obj, textures, program} 
     }
 
     pub fn handler(&mut self, objects: &mut Vec<game::Block>) {
         if self.collision_event {
-            let mut obj = game::Block::create(self.x, self.y+2.0*self.h, self.h, self.w, false, &Path::new("src/scenes/game/assets/images/mushroom.png"), "mushroom");
-
-            let vert_shader = render::Shader::vertex_from_src(
-                &CString::new(include_str!("assets/shaders/mushroom.vert")).unwrap(),
-            ).unwrap();
+            if self.collision_name == "mushroom" {
+                let mut obj = game::Block::create(self.x, self.y+2.0*self.h, self.h, self.w, false, &Path::new("src/scenes/game/assets/images/mushroom.png"), "mushroom");
     
-            let frag_shader = render::Shader::fragment_from_src(
-                &CString::new(include_str!("assets/shaders/mushroom.frag")).unwrap(),
-            ).unwrap();
+                let vert_shader = render::Shader::vertex_from_src(
+                    &CString::new(include_str!("assets/shaders/mushroom.vert")).unwrap(),
+                ).unwrap();
+        
+                let frag_shader = render::Shader::fragment_from_src(
+                    &CString::new(include_str!("assets/shaders/mushroom.frag")).unwrap(),
+                ).unwrap();
+        
+                let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
     
-            let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
+                obj.program = program;
+    
+                obj.move_acc_x = 1.0;
+                objects.push(obj);
+            }else {
+                let mut block = game::Block::create(self.x, self.y+2.0*self.h, self.h, 8.0/256.0, true, &Path::new("src/scenes/game/assets/images/coin1.png"), "coin");
 
-            obj.program = program;
-
-            obj.move_acc_x = 1.0;
-            objects.push(obj);
+                block.collision_name = "coin".to_string();
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin2.png")));
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin3.png")));
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin4.png")));
+                block.move_acc_y = 1.0;
+    
+                objects.push(block);
+            }
         }
-        self.texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/brick-still.png"));
+        self.textures[0] = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/brick-still.png"));
+        self.state = 0;
         self.collision_event = false;
+        self.is_hit = true;
     } 
 
     pub unsafe fn draw(&self) {
-        gl::BindTexture(gl::TEXTURE_2D, self.texture.texture);
+        gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
         gl::BindVertexArray(self.obj.vao);
         gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
     }
@@ -373,8 +402,8 @@ impl Objects {
         self.blocks.push(block);
     }
 
-    pub fn create_question_mark_block(&mut self, x: f32, y: f32, h: f32, w: f32, collision_event: bool) {
-        let block = QuestionMarkBlock::create(x, y, h, w, collision_event);
+    pub fn create_question_mark_block(&mut self, x: f32, y: f32, h: f32, w: f32, collision_event: bool, collision_name: String) {
+        let block = QuestionMarkBlock::create(x, y, h, w, collision_event, collision_name);
 
         self.question_mark_blocks.push(block);
     }

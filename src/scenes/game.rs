@@ -151,7 +151,8 @@ pub struct Block {
     move_acc_y: f32,
     move_acc_x: f32,
     collision_event: bool,
-    name: String,
+    collision_name: String,
+    collision_num: u32,
     state: usize,
     obj: render::Object,
     textures: Vec<render::Texture>,
@@ -159,7 +160,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool, path: &Path, name: &str) -> Self {
+    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool, path: &Path, collision_name: &str) -> Self {
         let points: Vec<f32> = vec![
             x+w, y+h, 0.0, 1.0, 0.0,
             x+w, y-h, 0.0, 1.0, 1.0,
@@ -205,28 +206,53 @@ impl Block {
             );
         }
         
-        let name = "block".to_string();
+        let collision_name = "block".to_string();
+        let mut collision_num = 0;
+        if collision_event {
+            collision_num = 1;
+        }
         let state = 0;
         let move_acc_y = 0.0;
         let move_acc_x = 0.0;
 
-        Self{x, y, w, h, move_acc_y, move_acc_x, collision_event, name, state, obj, textures, program} 
+        Self{x, y, w, h, move_acc_y, move_acc_x, collision_event, collision_name, collision_num, state, obj, textures, program} 
     }
 
     pub fn handle(&mut self, objects: &mut Vec<Block>) {
-        if self.collision_event {
-            let mut block = Block::create(self.x, self.y+2.0*self.h, self.h, 8.0/256.0, true, &Path::new("src/scenes/game/assets/images/coin1.png"), "coin");
+        println!("{}", self.collision_num);
+        if self.collision_event && self.collision_num != 0 {
+            if self.collision_name == "block".to_string() {
+                let mut block = Block::create(self.x, self.y+2.0*self.h, self.h, 8.0/256.0, true, &Path::new("src/scenes/game/assets/images/coin1.png"), "coin");
 
-            block.name = "coin".to_string();
-            block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin2.png")));
-            block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin3.png")));
-            block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin4.png")));
-            block.move_acc_y = 1.0;
+                block.collision_name = "coin".to_string();
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin2.png")));
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin3.png")));
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin4.png")));
+                block.move_acc_y = 1.0;
 
-            objects.push(block);
+                objects.push(block);
+            }
+            else if self.collision_name == "star".to_string() {
+                println!("STAR");
+
+                let mut block = Block::create(self.x, self.y+2.0*self.h, self.h, self.w, true, &Path::new("src/scenes/game/assets/images/star1.png"), "star");
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/star2.png")));
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/star3.png")));
+                block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/star4.png")));
+
+                block.collision_name = "star".to_string();
+
+                objects.push(block);
+            }
+
+            self.collision_num -= 1;
         }
-        self.textures[0] = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/brick-still.png"));
-        self.collision_event = false;
+
+        if self.collision_num == 0 {
+            self.textures[0] = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/brick-still.png"));
+            self.collision_event = false;
+        }
+
     }
 
     pub unsafe fn draw(&self) {
@@ -317,10 +343,15 @@ impl Game {
             for block in tile.objects.blocks.iter_mut() {
                 if self.spirit.check_hitbox(block) == "bottom" {
                     self.spirit.y = block.y+block.h+self.spirit.h;
+                    if self.spirit.move_acc_y < 0 as f32 {
+                        self.spirit.move_acc_y = 0.0;
+                    }
+                    self.spirit.is_falling = false;
                 }else if self.spirit.check_hitbox(block) == "top" {
                     self.spirit.y = block.y-block.h-self.spirit.w;
 
                     block.handle(&mut self.objects_still);
+                    self.spirit.move_acc_y = -1.0
                 }else if self.spirit.check_hitbox(block) == "left" {
                     self.spirit.x = block.x+block.w+self.spirit.w+0.01;
                 }else if self.spirit.check_hitbox(block) == "right" {
@@ -328,8 +359,18 @@ impl Game {
                 }
             }
             
-            // Question mark box collision handling
+            // Question mark box collision handling and animation
             for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
+                question_mark_block.delay += 1;
+
+                if question_mark_block.delay >= 15 && !question_mark_block.is_hit {
+                    question_mark_block.delay = 0;
+                    question_mark_block.state += 1;
+                    if question_mark_block.state == 3 {
+                        question_mark_block.state = 0;
+                    }
+                }
+
                 if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
                     self.spirit.y = question_mark_block.y+question_mark_block.h+self.spirit.h;
                     if self.spirit.move_acc_y < 0 as f32 {
@@ -338,7 +379,13 @@ impl Game {
                     self.spirit.is_falling = false;
                 }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "top" {
                     self.spirit.y = question_mark_block.y-question_mark_block.h-self.spirit.w;
-                    question_mark_block.handler(&mut self.objects_inmove);
+                    if question_mark_block.collision_name == "mushroom" {
+                        question_mark_block.handler(&mut self.objects_inmove);
+                    }else {
+                        question_mark_block.handler(&mut self.objects_still);
+                    }
+
+                    self.spirit.move_acc_y = -1.0
                 }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "left" {
                     self.spirit.x = question_mark_block.x+question_mark_block.w+self.spirit.w+0.01;
                 }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "right" {
@@ -350,23 +397,20 @@ impl Game {
         // still objects animations and collision
         let mut index = 0; 
         let mut indexes_to_remove: Vec<usize> = vec![];
-        for obj in self.objects_still.iter_mut() {   
-            if obj.name == "coin".to_string() {
-                if self.delay >= 8 {
+        if self.delay >= 5 {
+            for obj in self.objects_still.iter_mut() {
+                if obj.collision_name == "coin".to_string() || obj.collision_name == "star".to_string() {
                     obj.state += 1;
                     if obj.state == 4 {
                         obj.state = 0;
                     }
-                    self.delay = 0;
                 }
             }
-            index += 1;
+            self.delay = 0;
         }
-
         for index in indexes_to_remove {
             self.objects_still.remove(index);
         }
-
         index = 0;
         self.delay += 1;
         
