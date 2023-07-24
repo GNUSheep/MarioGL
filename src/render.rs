@@ -49,37 +49,41 @@ impl Texture {
 pub struct Object {
     pub vao: gl::types::GLuint,
     pub vbo: gl::types::GLuint,
+    pub x: f32,
+    pub y: f32,
+    pub h: f32,
+    pub w: f32,
 }
 
 impl Object {
-    pub fn create_triangles_with_points(points: Vec<f32>) -> Self {
-        let mut vao: gl::types::GLuint = 0;
-        unsafe {
-            gl::GenVertexArrays(1, &mut vao);
-        }
-        unsafe {
-            gl::BindVertexArray(vao);
-        }
-        
-        let mut vbo: gl::types::GLuint = 0;
-        unsafe {
-            gl::GenBuffers(1, &mut vbo);
-        }
-        unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::BufferData (
-                gl::ARRAY_BUFFER,
-                (points.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
-                points.as_ptr() as *const gl::types::GLvoid,
-                gl::STATIC_DRAW,
-            );
-        }
-        unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-            gl::BindVertexArray(0);
-        }
-        Self{vao, vbo}
-    }
+    //pub fn create_triangles_with_points(points: Vec<f32>) -> Self {
+    //    let mut vao: gl::types::GLuint = 0;
+    //    unsafe {
+    //        gl::GenVertexArrays(1, &mut vao);
+    //    }
+    //    unsafe {
+    //        gl::BindVertexArray(vao);
+    //    }
+    //    
+    //    let mut vbo: gl::types::GLuint = 0;
+    //    unsafe {
+    //        gl::GenBuffers(1, &mut vbo);
+    //    }
+    //    unsafe {
+    //        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+    //        gl::BufferData (
+    //            gl::ARRAY_BUFFER,
+    //            (points.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+    //            points.as_ptr() as *const gl::types::GLvoid,
+    //            gl::STATIC_DRAW,
+    //        );
+    //    }
+    //    unsafe {
+    //        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+    //        gl::BindVertexArray(0);
+    //    }
+    //    Self{vao, vbo}
+    //}
 
     pub fn create_square_with_points(points: Vec<f32>, indices: [i32; 6]) -> Self {
         let mut vao: gl::types::GLuint = 0;
@@ -126,7 +130,21 @@ impl Object {
             gl::BindVertexArray(0);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
         }
-        Self{vao, vbo}
+
+        // default options for objects that use collision by being Block class
+        let x = -1.0;
+        let y = -1.0;
+        let h = 0.0;
+        let w = 0.0;
+
+        Self{vao, vbo, x, y, h, w}
+    }
+
+    pub fn set_cordinates(&mut self, x: f32, y: f32, h: f32, w: f32) {
+        self.x = x;
+        self.y = y;
+        self.h = h;
+        self.w = w;
     }
 
     pub unsafe fn set_vertex_attrib_pointer(

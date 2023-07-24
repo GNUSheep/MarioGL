@@ -17,7 +17,7 @@ fn main() {
     gl_attr.set_context_profile(GLProfile::Core);
     gl_attr.set_context_version(4, 6);
 
-    let window = video_subsystem.window("Runner", 256, 208).opengl().build().unwrap();
+    let window = video_subsystem.window("Runner", 256, 240).opengl().build().unwrap();
     
     let _ctx = window.gl_create_context().unwrap();
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
@@ -25,6 +25,7 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut game = scenes::game::Game::init();
     let mut up = false;
+    let mut down = false;
     let mut right = false;
     let mut left = false;
     'main: loop {
@@ -37,6 +38,7 @@ fn main() {
                         Keycode::D => right = true,
                         Keycode::A => left = true,
                         Keycode::W => up = true,
+                        Keycode::S => down = true,
                         _ => {},
                     }
                 },
@@ -45,17 +47,19 @@ fn main() {
                         Keycode::D => right = false,
                         Keycode::A => left = false,
                         Keycode::W => up = false,
+                        Keycode::S => down = false,
                         _ => {},
                     }
                 },
                 _ => {},
             }
         }
-        if !game.spirit.is_dead {
+        //if !game.spirit.is_dead {
             if left {game.move_x("left")};
             if right {game.move_x("right")};
             if up {game.jump()};
-        }
+            if down {game.crouch()};
+        //}
 
         unsafe{game.draw()};
         window.gl_swap_window();

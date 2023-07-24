@@ -30,9 +30,9 @@ impl Flag {
         let mut textures: Vec<render::Texture> = vec![];
         let mut objects: Vec<render::Object> = vec![];
 
-        let stone = game::Block::create(x, y, 16.0/208.0, 16.0/256.0, false, &Path::new("src/scenes/game/assets/images/stone_up.png"), "flag");
+        let stone = game::Block::create(x, y, 16.0/240.0, 16.0/256.0, false, &Path::new("src/scenes/game/assets/images/stone_up.png"), "flag");
         
-        let h = 16.0/208.0;
+        let h = 16.0/240.0;
         let w = 16.0/256.0;
         let mut offset = 1.0;
         for _i in 0..=8 {
@@ -113,18 +113,20 @@ impl Flag {
 }
 
 pub struct Pipe {
-    x: f32,
-    y: f32,
-    h: f32,
-    w: f32,
+    pub x: f32,
+    pub y: f32,
+    pub h: f32,
+    pub w: f32,
+    with_enter: bool,
+    pub is_collision: bool,
     pipe_len: usize,
-    objects: Vec<render::Object>,
+    pub objects: Vec<render::Object>,
     textures: Vec<render::Texture>,
     program: render::Program,
 }
 
 impl Pipe {
-    fn create(x: f32, y: f32, h: f32, w: f32, pipe_len: usize) -> Self {
+    pub fn create(x: f32, y: f32, h: f32, w: f32, pipe_len: usize, with_enter: bool, is_collision: bool) -> Self {
         const INDCIES: [i32; 6] = [
             0, 1, 2,
             2, 3, 0
@@ -141,29 +143,33 @@ impl Pipe {
         let mut textures: Vec<render::Texture> = vec![];
         let mut objects: Vec<render::Object> = vec![];
 
-        let points: Vec<f32> = vec![
-            x+w, y+h, 0.0, 1.0, 0.0,
-            x+w, y-h, 0.0, 1.0, 1.0,
-            x, y-h, 0.0, 0.0, 1.0,
-            x, y+h, 0.0, 0.0, 0.0
-        ];
-
-        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_enter_right.png"));
-        let obj = render::Object::create_square_with_points(points, INDCIES);
-        textures.push(texture);
-        objects.push(obj);
-
-        let points: Vec<f32> = vec![
-            x-w, y+h, 0.0, 1.0, 0.0,
-            x-w, y-h, 0.0, 1.0, 1.0,
-            x, y-h, 0.0, 0.0, 1.0,
-            x, y+h, 0.0, 0.0, 0.0
-        ];
-
-        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_enter_left.png"));
-        let obj = render::Object::create_square_with_points(points, INDCIES);
-        textures.push(texture);
-        objects.push(obj);
+        if with_enter {
+            let points: Vec<f32> = vec![
+                x+w, y+h, 0.0, 1.0, 0.0,
+                x+w, y-h, 0.0, 1.0, 1.0,
+                x, y-h, 0.0, 0.0, 1.0,
+                x, y+h, 0.0, 0.0, 0.0
+            ];
+    
+            let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_enter_right.png"));
+            let mut obj = render::Object::create_square_with_points(points, INDCIES);
+            obj.set_cordinates(x+w/2 as f32, y, 16.0/240.0, 16.0/256.0);
+            textures.push(texture);
+            objects.push(obj);
+    
+            let points: Vec<f32> = vec![
+                x-w, y+h, 0.0, 1.0, 0.0,
+                x-w, y-h, 0.0, 1.0, 1.0,
+                x, y-h, 0.0, 0.0, 1.0,
+                x, y+h, 0.0, 0.0, 0.0
+            ];
+    
+            let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_enter_left.png"));
+            let mut obj = render::Object::create_square_with_points(points, INDCIES);
+            obj.set_cordinates(x-w/2 as f32, y, 16.0/240.0, 16.0/256.0);
+            textures.push(texture);
+            objects.push(obj);
+        }
 
         let mut offset = 1.0;
         for _i in 1..=pipe_len {    
@@ -175,7 +181,8 @@ impl Pipe {
             ];
 
             let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_right.png"));
-            let obj = render::Object::create_square_with_points(points, INDCIES);
+            let mut obj = render::Object::create_square_with_points(points, INDCIES);
+            obj.set_cordinates(x+w/2 as f32, y-(offset+1.0)*h, 16.0/240.0, 16.0/256.0);
             textures.push(texture);
             objects.push(obj);
 
@@ -188,7 +195,8 @@ impl Pipe {
             ];
 
             let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_left.png"));
-            let obj = render::Object::create_square_with_points(points, INDCIES);
+            let mut obj = render::Object::create_square_with_points(points, INDCIES);
+            obj.set_cordinates(x-w/2 as f32, y-(offset+1.0)*h, 16.0/240.0, 16.0/256.0);
             textures.push(texture);
             objects.push(obj);
             
@@ -215,11 +223,164 @@ impl Pipe {
             }
         }
         
-        Self{x, y, w, h, pipe_len, objects, textures, program} 
+        Self{x, y, w, h, with_enter, is_collision, pipe_len, objects, textures, program} 
+    }
+
+    pub fn create_sidepipe(x: f32, y: f32, h: f32, w: f32, mut pipe_len: usize) -> Self {
+        const INDCIES: [i32; 6] = [
+            0, 1, 2,
+            2, 3, 0
+        ];
+        let vert_shader = render::Shader::vertex_from_src(
+            &CString::new(include_str!("assets/shaders/block.vert")).unwrap(),
+        ).unwrap();
+        
+        let frag_shader = render::Shader::fragment_from_src(
+            &CString::new(include_str!("assets/shaders/block.frag")).unwrap(),
+        ).unwrap();
+        let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
+
+        let mut textures: Vec<render::Texture> = vec![];
+        let mut objects: Vec<render::Object> = vec![];
+
+        let points: Vec<f32> = vec![
+            x+w, y+h+h, 0.0, 1.0, 0.0,
+            x+w, y, 0.0, 1.0, 1.0,
+            x-w, y, 0.0, 0.0, 1.0,
+            x-w, y+h+h, 0.0, 0.0, 0.0
+        ];
+
+        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_side_enter_top.png"));
+        let mut obj = render::Object::create_square_with_points(points, INDCIES);
+        obj.set_cordinates(x, y+h, 16.0/240.0, 16.0/256.0);
+        textures.push(texture);
+        objects.push(obj);
+
+        let points: Vec<f32> = vec![
+            x+w, y, 0.0, 1.0, 0.0,
+            x+w, y-h-h, 0.0, 1.0, 1.0,
+            x-w, y-h-h, 0.0, 0.0, 1.0,
+            x-w, y, 0.0, 0.0, 0.0
+        ];
+
+        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_side_enter_bottom.png"));
+        let mut obj = render::Object::create_square_with_points(points, INDCIES);
+        obj.set_cordinates(x, y-h, 16.0/240.0, 16.0/256.0);
+        textures.push(texture);
+        objects.push(obj);
+
+        let points: Vec<f32> = vec![
+            x+w*3 as f32, y+h+h, 0.0, 1.0, 0.0,
+            x+w*3 as f32, y, 0.0, 1.0, 1.0,
+            x+w, y, 0.0, 0.0, 1.0,
+            x+w, y+h+h, 0.0, 0.0, 0.0
+        ];
+
+        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_side_top.png"));
+        let mut obj = render::Object::create_square_with_points(points, INDCIES);
+        obj.set_cordinates(x+w*2 as f32, y+h, 16.0/240.0, 16.0/256.0);
+        textures.push(texture);
+        objects.push(obj);
+
+        let points: Vec<f32> = vec![
+            x+w*3 as f32, y, 0.0, 1.0, 0.0,
+            x+w*3 as f32, y-h-h, 0.0, 1.0, 1.0,
+            x+w, y-h-h, 0.0, 0.0, 1.0,
+            x+w, y, 0.0, 0.0, 0.0
+        ];
+
+        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_side_bottom.png"));
+        let mut obj = render::Object::create_square_with_points(points, INDCIES);
+        obj.set_cordinates(x+w*2 as f32, y-h, 16.0/240.0, 16.0/256.0);
+        textures.push(texture);
+        objects.push(obj);
+
+        let points: Vec<f32> = vec![
+            x+w*5 as f32, y+h+h, 0.0, 1.0, 0.0,
+            x+w*5 as f32, y, 0.0, 1.0, 1.0,
+            x+w*3 as f32, y, 0.0, 0.0, 1.0,
+            x+w*3 as f32, y+h+h, 0.0, 0.0, 0.0
+        ];
+
+        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_side_connection_top.png"));
+        let obj = render::Object::create_square_with_points(points, INDCIES);
+        textures.push(texture);
+        objects.push(obj);
+
+        let points: Vec<f32> = vec![
+            x+w*5 as f32, y, 0.0, 1.0, 0.0,
+            x+w*5 as f32, y-h-h, 0.0, 1.0, 1.0,
+            x+w*3 as f32, y-h-h, 0.0, 0.0, 1.0,
+            x+w*3 as f32, y, 0.0, 0.0, 0.0
+        ];
+
+        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_side_connection_bottom.png"));
+        let obj = render::Object::create_square_with_points(points, INDCIES);
+        textures.push(texture);
+        objects.push(obj);
+
+        let points: Vec<f32> = vec![
+            x+w*7 as f32, y+h+h, 0.0, 1.0, 0.0,
+            x+w*7 as f32, y, 0.0, 1.0, 1.0,
+            x+w*5 as f32, y, 0.0, 0.0, 1.0,
+            x+w*5 as f32, y+h+h, 0.0, 0.0, 0.0
+        ];
+
+        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_right.png"));
+        let obj = render::Object::create_square_with_points(points, INDCIES);
+        textures.push(texture);
+        objects.push(obj);
+
+        let points: Vec<f32> = vec![
+            x+w*7 as f32, y, 0.0, 1.0, 0.0,
+            x+w*7 as f32, y-h-h, 0.0, 1.0, 1.0,
+            x+w*5 as f32, y-h-h, 0.0, 0.0, 1.0,
+            x+w*5 as f32, y, 0.0, 0.0, 0.0
+        ];
+
+        let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_right.png"));
+        let obj = render::Object::create_square_with_points(points, INDCIES);
+        textures.push(texture);
+        objects.push(obj);
+
+        let pipe = Pipe::create(x+((16.0/256.0)*5 as f32), -1.0-((16.0/240.0)*(13-pipe_len) as f32), 16.0/240.0, 32.0/256.0, pipe_len, false, false);
+
+        textures.extend(pipe.textures);
+        objects.extend(pipe.objects);
+
+        unsafe {
+            for obj in objects.iter() {
+                obj.set_vertex_attrib_pointer(0, 
+                    3, 
+                    gl::FLOAT, 
+                    gl::FALSE, 
+                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
+                    std::ptr::null()
+                );
+                
+                obj.set_vertex_attrib_pointer(1, 
+                    2, 
+                    gl::FLOAT, 
+                    gl::FALSE, 
+                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
+                    (3 * std::mem::size_of::<f32>()) as *const c_void, 
+                );
+            }
+        }
+
+        pipe_len += 3;
+        let with_enter = true;
+        let is_collision = true;
+
+        Self{x, y, w, h, with_enter, is_collision, pipe_len, objects, textures, program} 
     }
 
     pub unsafe fn draw(&self) {
-        for i in 0..self.pipe_len*2+2 {
+        let mut add = 0;
+        if self.with_enter {
+            add = 2;
+        }
+        for i in 0..self.pipe_len*2+add {
             gl::BindTexture(gl::TEXTURE_2D, self.textures[i].texture);
             gl::BindVertexArray(self.objects[i].vao);
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
@@ -353,6 +514,7 @@ pub struct Objects {
     pub pipes: Vec<Pipe>,
     pub flag: Vec<Flag>,
     pub castle: Vec<game::Block>,
+    pub coins: Vec<game::Block>,
 }
 
 impl Objects {
@@ -363,29 +525,39 @@ impl Objects {
         let pipes: Vec<Pipe> = vec![];
         let flag: Vec<Flag> = vec![];
         let castle: Vec<game::Block> = vec![];
+        let coins: Vec<game::Block> = vec![];
 
-        Self{question_mark_blocks, blocks, stones, pipes, flag, castle}
+        Self{question_mark_blocks, blocks, stones, pipes, flag, castle, coins}
     }
 
     pub fn create_castle(&mut self, x: f32, y: f32, size: &str) {
         let block: game::Block;
         if size == "small" {
-            block = game::Block::create(x, y, 80.0/208.0, 80.0/256.0, false, &Path::new("src/scenes/game/assets/images/castle_small.png"), "castle");
+            block = game::Block::create(x, y, 80.0/240.0, 80.0/256.0, false, &Path::new("src/scenes/game/assets/images/castle_small.png"), "castle");
         }else {
-            block = game::Block::create(x, y, 80.0/208.0, 80.0/256.0, false, &Path::new("src/scenes/game/assets/images/castle_large.png"), "castle");
+            block = game::Block::create(x, y, 80.0/240.0, 80.0/256.0, false, &Path::new("src/scenes/game/assets/images/castle_large.png"), "castle");
         }
 
         self.castle.push(block);
     }
 
+    pub fn create_coin(&mut self, x: f32, y: f32) {
+        let mut block = game::Block::create(x, y, 16.0/240.0, 16.0/256.0, true, &Path::new("src/scenes/game/assets/images/coin_still1.png"), "coin");
+
+        block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_still2.png")));
+        block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_still3.png")));
+
+        self.coins.push(block);
+    }
+    
     pub fn create_flag(&mut self, x: f32, y: f32) {
         let block = Flag::create(x, y);
 
         self.flag.push(block);
     }
 
-    pub fn create_pipe(&mut self, x: f32, y: f32, h: f32, w: f32, pipe_len: usize) {
-        let block = Pipe::create(x, y, h, w, pipe_len);
+    pub fn create_pipe(&mut self, x: f32, y: f32, h: f32, w: f32, pipe_len: usize, with_enter: bool, is_collision: bool) {
+        let block = Pipe::create(x, y, h, w, pipe_len, with_enter, is_collision);
 
         self.pipes.push(block);
     }
@@ -396,8 +568,8 @@ impl Objects {
         self.stones.push(block);
     }
 
-    pub fn create_block(&mut self, x: f32, y: f32, h: f32, w: f32, collision_event: bool) {
-        let block = game::Block::create(x, y, h, w, collision_event, &Path::new("src/scenes/game/assets/images/brick.png"), "block");
+    pub fn create_block(&mut self, x: f32, y: f32, h: f32, w: f32, collision_event: bool, path: &str) {
+        let block = game::Block::create(x, y, h, w, collision_event, &Path::new(path), "block");
 
         self.blocks.push(block);
     }
@@ -409,6 +581,10 @@ impl Objects {
     }
 
     pub unsafe fn draw(&self) {
+        for coin in self.coins.iter() {
+            coin.draw();
+        }
+
         for castle in self.castle.iter() {
             castle.draw();
         }
