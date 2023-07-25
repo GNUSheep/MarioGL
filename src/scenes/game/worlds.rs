@@ -8,6 +8,7 @@ pub struct TileUnderground {
     pub wall: Vec<game::Block>,
     pub pipe: objects::Pipe,
     pub objects: objects::Objects,
+    pub delay: i32,
 }
 
 impl TileUnderground {
@@ -54,8 +55,9 @@ impl TileUnderground {
         );
         
         let objects = objects::Objects::init();
+        let delay = 0;
 
-        Self{floor, wall, pipe, objects}
+        Self{floor, wall, pipe, objects, delay}
     }
 
     unsafe fn draw(&self) {

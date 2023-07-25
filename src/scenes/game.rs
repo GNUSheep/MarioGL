@@ -322,12 +322,13 @@ impl Game {
             self.screen_move_x = -2.0*10.0;
             self.world.bg_color = "blue".to_string(); 
         }else {
-            self.spirit.y = -2.0;
-            self.spirit.x = -1.0+(16.0/256.0)*5 as f32;
-            self.spirit.is_underground = true;
-            self.screen_move_y = 2.07;
-            self.screen_move_x = 0.0;
-            self.world.bg_color = "black".to_string(); 
+            self.spirit.y = -1.0+(16.0/240.0)*(7 as f32);
+            //self.spirit.y = -2.0;
+            //self.spirit.x = -1.0+(16.0/256.0)*5 as f32;
+            //self.spirit.is_underground = true;
+            //self.screen_move_y = 2.07;
+            //self.screen_move_x = 0.0;
+            //self.world.bg_color = "black".to_string(); 
         }
     }
 
@@ -463,6 +464,8 @@ impl Game {
         go_into_pipe = false;
         self.spirit.is_crouch = false;
 
+        let mut indexes_to_remove: Vec<usize> = vec![];
+        let mut index = 0;
         for tile in self.world.tiles_underground.iter() {
             for brick in tile.floor.iter() {
                 if self.spirit.check_hitbox(brick) == "bottom" {
@@ -533,6 +536,22 @@ impl Game {
                     go_into_pipe = true;
                 }
             }
+            
+
+            for coin in tile.objects.coins.iter() {
+                if  self.spirit.check_hitbox(coin) == "bottom" ||
+                    self.spirit.check_hitbox(coin) == "top" ||
+                    self.spirit.check_hitbox(coin) == "left" ||
+                    self.spirit.check_hitbox(coin) == "right"  
+                {   
+                    indexes_to_remove.push(index);
+                }
+                index += 1;
+            }
+        }
+
+        for index in indexes_to_remove {
+            self.world.tiles_underground[0].objects.coins.remove(index);
         }
 
         if go_into_pipe {
@@ -551,22 +570,26 @@ impl Game {
                     }
                 }
             }
-
+            self.delay = 0;
+        }        
+        for index in indexes_to_remove {
+            self.objects_still.remove(index);
+        }
+        index = 0;
+        
+        if self.world.tiles_underground[0].delay >= 10 {
             for obj in self.world.tiles_underground[0].objects.coins.iter_mut() {
                 obj.state += 1;
                 if obj.state == 3 {
                     obj.state = 0;
                 }
             }
-
-            self.delay = 0;
+            self.world.tiles_underground[0].delay = 0;
         }
-        for index in indexes_to_remove {
-            self.objects_still.remove(index);
-        }
-        index = 0;
-        self.delay += 1;
         
+        self.world.tiles_underground[0].delay += 1;
+        self.delay += 1;
+
         if self.spirit.is_falling {
             self.spirit.move_acc_y -= 0.15;
         }
