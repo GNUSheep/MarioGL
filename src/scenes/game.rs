@@ -285,6 +285,7 @@ pub struct Game {
     screen_move_x: f32,
     screen_move_y: f32,
     is_over: bool,
+    pub is_endlvl: bool,
 }
 
 impl Game {    
@@ -294,12 +295,13 @@ impl Game {
         let screen_move_x = 0.0;
         let screen_move_y = 0.0;
         let is_over = false;
+        let is_endlvl = false;
         let objects_still: Vec<Block> = vec![];
         let objects_inmove: Vec<Block> = vec![];
         let delay = 0;
 
         let spirit = Spirit::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
-        Self{world, spirit, objects_still, objects_inmove, delay, screen_move_x, screen_move_y, is_over}
+        Self{world, spirit, objects_still, objects_inmove, delay, screen_move_x, screen_move_y, is_over, is_endlvl}
     }
 
     pub fn jump(&mut self) {
@@ -322,13 +324,64 @@ impl Game {
             self.screen_move_x = -2.0*10.0;
             self.world.bg_color = "blue".to_string(); 
         }else {
-            self.spirit.y = -1.0+(16.0/240.0)*(7 as f32);
-            //self.spirit.y = -2.0;
-            //self.spirit.x = -1.0+(16.0/256.0)*5 as f32;
-            //self.spirit.is_underground = true;
-            //self.screen_move_y = 2.07;
-            //self.screen_move_x = 0.0;
-            //self.world.bg_color = "black".to_string(); 
+            self.spirit.y = -2.0;
+            self.spirit.x = -1.0+(16.0/256.0)*5 as f32;
+            self.spirit.is_underground = true;
+            self.screen_move_y = 2.07;
+            self.screen_move_x = 0.0;
+            self.world.bg_color = "black".to_string(); 
+        }
+    }
+
+    pub fn endLevel(&mut self, deltatime: u32) {
+        self.spirit.is_falling = false;
+        if self.spirit.y >= -1.0+(16.0/240.0)*(7 as f32) {
+            self.spirit.y -= (deltatime as f32)*0.0008;
+        }else{
+            self.spirit.y = -1.0+(16.0/240.0)*(5 as f32);
+            if self.spirit.x <= -1.0+(16.0/256.0)*(409 as f32) {
+                self.spirit.x += (deltatime as f32)*0.001;
+                self.spirit.delay += 1;
+                if self.spirit.delay == 5 {
+                    self.spirit.delay = 0;
+                    self.spirit.state += 1;
+                    if self.spirit.state == 4 {
+                        self.spirit.state = 0;
+                    }
+                }
+                self.screen_move_x -= (deltatime as f32)*0.001; 
+            }else{
+                self.over();
+            }
+        }
+
+        unsafe {
+            let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+            let move_vel = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
+            self.spirit.program.set_active();
+            gl::Uniform2f(move_vel, self.spirit.x, self.spirit.y);
+
+            let view = glm::mat4(1.0, 0.0, 0.0, self.screen_move_x,
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0);
+
+            for tile in self.world.tiles.iter() {
+            let cname = std::ffi::CString::new("view").expect("CString::new failed");
+            let view_loc = gl::GetUniformLocation(tile.bg.background_prog.program, cname.as_ptr());
+            tile.bg.background_prog.set_active();
+            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+            let cname = std::ffi::CString::new("view").expect("CString::new failed");
+            let view_loc = gl::GetUniformLocation(tile.floor[0].program.program, cname.as_ptr());
+            tile.floor[0].program.set_active();
+            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+            }
+
+            let cname = std::ffi::CString::new("view").expect("CString::new failed");
+            let view_loc = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
+            self.spirit.program.set_active();
+            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
         }
     }
 
@@ -359,7 +412,6 @@ impl Game {
         // floor collision system
         self.spirit.is_falling = true;
 
-
         let mut go_into_pipe = false;
         for tile in self.world.tiles.iter_mut() {
             for brick in tile.floor.iter() {
@@ -378,6 +430,22 @@ impl Game {
                 }
                 else if self.spirit.check_hitbox(brick) == "right" {
                     self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
+                }
+            }
+
+            for stone in tile.objects.stones.iter() {
+                if self.spirit.check_hitbox(stone) == "bottom" {
+                    self.spirit.y = stone.y+stone.h+self.spirit.h;
+                    if self.spirit.move_acc_y < 0 as f32 {
+                        self.spirit.move_acc_y = 0.0;
+                    }
+                    self.spirit.is_falling = false;
+                }else if self.spirit.check_hitbox(stone) == "top" {
+                    self.spirit.y = stone.y-stone.h-self.spirit.w;
+                }else if self.spirit.check_hitbox(stone) == "left" {
+                    self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
+                }else if self.spirit.check_hitbox(stone) == "right" {
+                    self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
                 }
             }
 
@@ -453,6 +521,19 @@ impl Game {
                     self.spirit.x = question_mark_block.x+question_mark_block.w+self.spirit.w+0.01;
                 }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "right" {
                     self.spirit.x = question_mark_block.x-question_mark_block.w-self.spirit.w-0.01;
+                }
+            }
+
+            for flag in tile.objects.flag.iter() {
+                for obj in flag.objects.iter() {
+                    if  self.spirit.check_hitbox_pipe(obj) == "bottom" || 
+                    self.spirit.check_hitbox_pipe(obj) == "top" ||
+                    self.spirit.check_hitbox_pipe(obj) == "left" ||
+                    self.spirit.check_hitbox_pipe(obj) == "right"  
+                    { 
+                        self.is_endlvl = true;
+                        self.spirit.delay = 0;
+                    }
                 }
             }
         }

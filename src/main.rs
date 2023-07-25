@@ -64,6 +64,11 @@ fn main() {
         unsafe{game.draw()};
         window.gl_swap_window();
 
-        game.handle(timer_subsystem.ticks()-last_ticks);
+        let deltatime = timer_subsystem.ticks()-last_ticks;
+        if game.is_endlvl {
+            game.endLevel(deltatime);
+        }else {
+            game.handle(deltatime);
+        }
     }
 }

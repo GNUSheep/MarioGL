@@ -7,7 +7,7 @@ pub struct Flag {
     x: f32,
     y: f32,
     stone: game::Block,
-    objects: Vec<render::Object>,
+    pub objects: Vec<render::Object>,
     textures: Vec<render::Texture>,
     program: render::Program,
 }
@@ -44,7 +44,8 @@ impl Flag {
             ];
 
             let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/flag_pipe.png"));
-            let obj = render::Object::create_square_with_points(points, INDCIES);
+            let mut obj = render::Object::create_square_with_points(points, INDCIES);
+            obj.set_cordinates(x, y+((offset+1.0)*h), 16.0/240.0, 16.0/256.0);
             textures.push(texture);
             objects.push(obj);
 
