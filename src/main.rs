@@ -28,6 +28,8 @@ fn main() {
     let mut down = false;
     let mut right = false;
     let mut left = false;
+
+    let mut sec = 0;
     'main: loop {
         let last_ticks = timer_subsystem.ticks();
         for event in event_pump.poll_iter() {
@@ -65,6 +67,13 @@ fn main() {
         window.gl_swap_window();
 
         let deltatime = timer_subsystem.ticks()-last_ticks;
+
+        sec += deltatime;
+        if sec > 1000 {
+            sec = 0;
+            game.time -= 1;
+        }
+
         if game.is_endlvl {
             game.endLevel(deltatime);
         }else {

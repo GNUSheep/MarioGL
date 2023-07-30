@@ -286,6 +286,13 @@ pub struct Game {
     screen_move_y: f32,
     is_over: bool,
     pub is_endlvl: bool,
+    hud: render::Texts,
+    hud_coin_icon: Block,
+    score: u32,
+    coins: u32,
+    world_number: u32,
+    world_level: u32,
+    pub time: u32,
 }
 
 impl Game {    
@@ -300,8 +307,19 @@ impl Game {
         let objects_inmove: Vec<Block> = vec![];
         let delay = 0;
 
+        let score = 0;
+        let coins = 0;
+        let world_number = 1;
+        let world_level = 1;
+        let time = 400;
+
+        let mut hud = render::Texts::init();
+        let mut hud_coin_icon = Block::create(-1.0+(8.0/256.0)*23.0, 1.0-(8.0/240.0)*7.0, 8.0/240.0, 8.0/256.0, false, &Path::new("src/scenes/game/assets/images/coin_icon1.png"), "coin_icon");
+        hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon2.png")));
+        hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon3.png")));
+
         let spirit = Spirit::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
-        Self{world, spirit, objects_still, objects_inmove, delay, screen_move_x, screen_move_y, is_over, is_endlvl}
+        Self{world, spirit, objects_still, objects_inmove, delay, screen_move_x, screen_move_y, is_over, is_endlvl, hud, hud_coin_icon, score, coins, world_number, world_level, time}
     }
 
     pub fn jump(&mut self) {
@@ -618,7 +636,6 @@ impl Game {
                 }
             }
             
-
             for coin in tile.objects.coins.iter() {
                 if  self.spirit.check_hitbox(coin) == "bottom" ||
                     self.spirit.check_hitbox(coin) == "top" ||
@@ -626,10 +643,15 @@ impl Game {
                     self.spirit.check_hitbox(coin) == "right"  
                 {   
                     indexes_to_remove.push(index);
+                    self.coins += 1;
+                    self.score += 200;
                 }
                 index += 1;
             }
         }
+
+        indexes_to_remove.sort();
+        indexes_to_remove.reverse();
 
         for index in indexes_to_remove {
             self.world.tiles_underground[0].objects.coins.remove(index);
@@ -666,6 +688,11 @@ impl Game {
                 }
             }
             self.world.tiles_underground[0].delay = 0;
+
+            self.hud_coin_icon.state += 1;
+            if self.hud_coin_icon.state == 3 {
+                self.hud_coin_icon.state = 0;
+            }
         }
         
         self.world.tiles_underground[0].delay += 1;
@@ -771,7 +798,7 @@ impl Game {
 
     }
 
-    pub unsafe fn draw(&self) {
+    pub unsafe fn draw(&mut self) {
         if !self.is_over {
             self.world.draw();
             for obj in self.objects_still.iter() {
@@ -780,6 +807,30 @@ impl Game {
             for obj in self.objects_inmove.iter() {
                 obj.draw();
             }
+
+            self.hud.add_text("mario".to_string(), -1.0+(8.0/256.0)*5.0, 1.0-(8.0/240.0)*5.0);
+
+            let mut score_string = self.score.to_string();
+            for i in 1..=6-self.score.to_string().len() {
+                score_string = "0".to_string() + &score_string;
+            }
+            self.hud.add_text(score_string, -1.0+(8.0/256.0)*5.0, 1.0-(8.0/240.0)*7.0);
+    
+            let mut coins_string = self.coins.to_string();
+            for i in 1..=2-self.coins.to_string().len() {
+                coins_string = "0".to_string() + &coins_string;
+            }
+            self.hud.add_text("+".to_string() + &coins_string, -1.0+(8.0/256.0)*25.0, 1.0-(8.0/240.0)*7.0);
+    
+            self.hud.add_text("world".to_string(), -1.0+(8.0/256.0)*40.0, 1.0-(8.0/240.0)*5.0);
+    
+            self.hud.add_text(self.world_number.to_string() + "-" + &self.world_level.to_string(), -1.0+(8.0/256.0)*42.0, 1.0-(8.0/240.0)*7.0);
+    
+            self.hud.add_text("time".to_string(), -1.0+(8.0/256.0)*55.0, 1.0-(8.0/240.0)*5.0);
+            self.hud.add_text(self.time.to_string(), -1.0+(8.0/256.0)*57.0, 1.0-(8.0/240.0)*7.0);
+
+            self.hud_coin_icon.draw();
+
             self.spirit.draw();
         }
     }

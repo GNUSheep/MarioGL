@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use crate::scenes::game;
 
 pub struct Texts {
-    objects: Vec<Object>,
     texture: Texture,
     program: Program,
     chars: Vec<char>,
@@ -17,12 +16,12 @@ pub struct Texts {
 
 impl Texts {
     pub fn init() -> Self {
-        let chars: Vec<char> = vec!['0','1','2','3','4','5','6','7','8','9','a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o','p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
-        let mut positions = vec![[0.0; 8]; 36];
+        let chars: Vec<char> = vec!['0','1','2','3','4','5','6','7','8','9','a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o','p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '-', '+'];
+        let mut positions = vec![[0.0; 8]; 38];
         
         let mut y_bitmap = 0;
         let mut i = 0;
-        for mut j in 0..=35 {
+        for mut j in 0..=37 {
             if i == 16 {
                 y_bitmap += 1;
                 i = 0;
@@ -42,7 +41,6 @@ impl Texts {
 
         let bitmap: HashMap<_, _> = chars.iter().zip(positions.iter()).collect();
         let texture = Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/font_bitmap.png"));
-        let mut objects: Vec<Object> = vec![];
         
         let vert_shader = Shader::vertex_from_src(
             &CString::new(include_str!("scenes/game/assets/shaders/text.vert")).unwrap(),
@@ -54,7 +52,7 @@ impl Texts {
         
         let program = Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
 
-        Self{objects, texture, program, chars, positions}
+        Self{texture, program, chars, positions}
     }
 
     pub fn add_text(&mut self, text: String, x: f32, y: f32) {
@@ -66,6 +64,8 @@ impl Texts {
             2, 3, 0
         ];
     
+        let mut objects: Vec<Object> = vec![];
+
         let mut index = 0;
         for c in text_vec_char.iter() {
             let pos = bitmap.get(c).unwrap();
@@ -78,11 +78,11 @@ impl Texts {
 
             index += 2;
             let obj = Object::create_square_with_points(points, INDCIES);
-            self.objects.push(obj);
+            objects.push(obj);
         }
 
         unsafe {
-            for obj in self.objects.iter() {
+            for obj in objects.iter() {
                 obj.set_vertex_attrib_pointer(0, 
                     3, 
                     gl::FLOAT, 
@@ -99,16 +99,14 @@ impl Texts {
                     (3 * std::mem::size_of::<f32>()) as *const c_void, 
                 );
             }
+            self.program.set_active();
+            gl::BindTexture(gl::TEXTURE_2D, self.texture.texture);
+            for obj in objects.iter() {
+                gl::BindVertexArray(obj.vao);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+            }
         }
-    }
 
-    pub unsafe fn draw(&self) {
-        self.program.set_active();
-        gl::BindTexture(gl::TEXTURE_2D, self.texture.texture);
-        for obj in self.objects.iter() {
-            gl::BindVertexArray(obj.vao);
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
-        }
     }
 }
 
