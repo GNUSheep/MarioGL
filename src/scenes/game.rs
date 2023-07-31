@@ -224,7 +224,7 @@ impl Block {
             );
         }
         
-        let collision_name = "block".to_string();
+        let collision_name = collision_name.to_string();
         let mut collision_num = 0;
         if collision_event {
             collision_num = 1;
@@ -244,13 +244,26 @@ impl Block {
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin2.png")));
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin3.png")));
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin4.png")));
-                block.move_acc_y = 1.0;
+                block.move_acc_y = 2.5;
+
+                let vert_shader = render::Shader::vertex_from_src(
+                    &CString::new(include_str!("game/assets/shaders/coin.vert")).unwrap(),
+                ).unwrap();
+        
+                let frag_shader = render::Shader::fragment_from_src(
+                    &CString::new(include_str!("game/assets/shaders/coin.frag")).unwrap(),
+                ).unwrap();
+        
+                let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
+    
+                block.program = program;
+
+                block.x = 0.0;
+                block.y = 0.0;
 
                 objects.push(block);
             }
             else if self.collision_name == "star".to_string() {
-                println!("STAR");
-
                 let mut block = Block::create(self.x, self.y+2.0*self.h, self.h, self.w, true, &Path::new("src/scenes/game/assets/images/star1.png"), "star");
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/star2.png")));
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/star3.png")));
@@ -674,7 +687,24 @@ impl Game {
                 }
             }
             self.delay = 0;
-        }        
+        }
+
+        for obj in self.objects_still.iter_mut() {
+            if obj.collision_name == "coin".to_string() {
+                if obj.move_acc_y < 0.0 {
+                    indexes_to_remove.push(index);
+                    self.coins += 1;
+                    self.score += 200;
+                }
+                obj.move_acc_y -= 0.15;
+                obj.y += (deltatime as f32)*0.0017*obj.move_acc_y;  
+            }
+            index += 1;
+        }
+
+        indexes_to_remove.sort();
+        indexes_to_remove.reverse();
+
         for index in indexes_to_remove {
             self.objects_still.remove(index);
         }
@@ -790,6 +820,18 @@ impl Game {
                 gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
             }
 
+            for obj in self.objects_still.iter() {
+                let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                let view_loc = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                obj.program.set_active();
+                gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+                let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                let move_vel = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                obj.program.set_active();
+                gl::Uniform2f(move_vel, obj.x, obj.y);
+            }
+
             let cname = std::ffi::CString::new("view").expect("CString::new failed");
             let view_loc = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
             self.spirit.program.set_active();
@@ -801,10 +843,11 @@ impl Game {
     pub unsafe fn draw(&mut self) {
         if !self.is_over {
             self.world.draw();
-            for obj in self.objects_still.iter() {
+            for obj in self.objects_inmove.iter() {
                 obj.draw();
             }
-            for obj in self.objects_inmove.iter() {
+            for obj in self.objects_still.iter() {
+                obj.program.set_active();
                 obj.draw();
             }
 

@@ -490,7 +490,23 @@ impl QuestionMarkBlock {
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin2.png")));
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin3.png")));
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin4.png")));
-                block.move_acc_y = 1.0;
+
+                let vert_shader = render::Shader::vertex_from_src(
+                    &CString::new(include_str!("assets/shaders/coin.vert")).unwrap(),
+                ).unwrap();
+        
+                let frag_shader = render::Shader::fragment_from_src(
+                    &CString::new(include_str!("assets/shaders/coin.frag")).unwrap(),
+                ).unwrap();
+        
+                let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
+    
+                block.program = program;
+
+                block.x = 0.0;
+                block.y = 0.0;
+
+                block.move_acc_y = 2.5;
     
                 objects.push(block);
             }
