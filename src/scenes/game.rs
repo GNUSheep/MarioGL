@@ -236,6 +236,48 @@ impl Block {
         Self{x, y, w, h, move_acc_y, move_acc_x, collision_event, collision_name, collision_num, state, obj, textures, program} 
     }
 
+    pub fn check_hitbox(&self, obj: &Block) -> &str {
+        let right: bool = self.x+self.w >= obj.x-obj.w;
+        let left: bool = obj.x+obj.w >= self.x-self.w;
+        let top: bool = self.y+self.h >= obj.y-obj.h;
+        let bottom: bool = obj.y+obj.h >= self.y-self.h;
+        if bottom && left && right && top {
+            if obj.y < self.y {return "bottom"}
+            if obj.y > self.y && (obj.x-obj.w < self.x && self.x < obj.x+obj.w) {return "top"}
+            if obj.x < self.x {return "left"}
+            if obj.x > self.x {return "right"};
+        }
+        return "nil"
+    }
+
+    pub fn check_hitbox_question_mark_block(&self, obj: &objects::QuestionMarkBlock) -> &str {
+        let right: bool = self.x+self.w >= obj.x-obj.w;
+        let left: bool = obj.x+obj.w >= self.x-self.w;
+        let top: bool = self.y+self.h >= obj.y-obj.h;
+        let bottom: bool = obj.y+obj.h >= self.y-self.h;
+        if bottom && left && right && top {
+            if obj.y < self.y {return "bottom"}
+            if obj.y > self.y && (obj.x-obj.w < self.x && self.x < obj.x+obj.w) {return "top"}
+            if obj.x < self.x {return "left"}
+            if obj.x > self.x {return "right"};
+        }
+        return "nil"
+    }
+
+    pub fn check_hitbox_pipe(&self, obj: &render::Object) -> &str {
+        let right: bool = self.x+self.w >= obj.x-obj.w;
+        let left: bool = obj.x+obj.w >= self.x-self.w;
+        let top: bool = self.y+self.h >= obj.y-obj.h;
+        let bottom: bool = obj.y+obj.h >= self.y-self.h;
+        if bottom && left && right && top {
+            if obj.y < self.y {return "bottom"}
+            if obj.y > self.y && (obj.x-obj.w < self.x && self.x < obj.x+obj.w) {return "top"}
+            if obj.x < self.x {return "left"}
+            if obj.x > self.x {return "right"};
+        }
+        return "nil"
+    }
+
     pub fn handle(&mut self, objects: &mut Vec<Block>) {
         if self.collision_event && self.collision_num != 0 {
             if self.collision_name == "block".to_string() {
@@ -688,7 +730,6 @@ impl Game {
             }
             self.delay = 0;
         }
-
         for obj in self.objects_still.iter_mut() {
             if obj.collision_name == "coin".to_string() {
                 if obj.move_acc_y < 0.0 {
@@ -707,6 +748,76 @@ impl Game {
 
         for index in indexes_to_remove {
             self.objects_still.remove(index);
+        }
+        index = 0;
+        
+
+        let mut index = 0; 
+        let mut indexes_to_remove: Vec<usize> = vec![];
+        for obj in self.objects_inmove.iter_mut() {
+            if obj.collision_name == "mushroom".to_string() {
+                let mut obj_falling = true;
+                obj.x += (deltatime as f32)*0.0008*obj.move_acc_x;
+                for tile in self.world.tiles.iter_mut() {
+                    for pipe in tile.objects.pipes.iter() {
+                        for pipe_obj in pipe.objects.iter() {
+                            if obj.check_hitbox_pipe(pipe_obj) == "right" || obj.check_hitbox_pipe(pipe_obj) == "left" {
+                                obj.move_acc_x *= -1 as f32;
+                            }
+                        }
+                    }
+                    for block in tile.objects.blocks.iter_mut() {
+                        if obj.check_hitbox(block) == "bottom" {
+                            obj.y = block.y+block.h+obj.h;
+                            if obj.move_acc_y < 0 as f32 {
+                                obj.move_acc_y = 0.0;
+                            }
+                            obj_falling = false;
+                        }else if obj.check_hitbox(block) == "left" || obj.check_hitbox(block) == "right" {
+                            obj.move_acc_x *= -1 as f32;
+                        }
+                    }
+                    for block in tile.objects.question_mark_blocks.iter_mut() {
+                        if obj.check_hitbox_question_mark_block(block) == "bottom" {
+                            obj.y = block.y+block.h+obj.h;
+                            if obj.move_acc_y < 0 as f32 {
+                                obj.move_acc_y = 0.0;
+                            }
+                            obj_falling = false;
+                        }
+                    }
+                    for brick in tile.floor.iter() {
+                        if obj.check_hitbox(brick) == "bottom" {
+                            obj.y = brick.y+brick.h+obj.h;
+                            if obj.move_acc_y < 0 as f32 {
+                                obj.move_acc_y = 0.0;
+                            }
+                            obj_falling = false;
+                        }
+                    }
+                }
+                
+                if self.spirit.check_hitbox(obj) == "bottom" ||
+                    self.spirit.check_hitbox(obj) == "top" ||
+                    self.spirit.check_hitbox(obj) == "left" ||
+                    self.spirit.check_hitbox(obj) == "right" {
+                        indexes_to_remove.push(index);
+                }
+                
+                if obj_falling {
+                    obj.move_acc_y -= 0.15;
+                }
+                obj.y += (deltatime as f32)*0.001*obj.move_acc_y; 
+            }
+            index += 1;
+        }
+
+        indexes_to_remove.sort();
+        indexes_to_remove.reverse();
+
+        for index in indexes_to_remove {
+            println!("{}", index);
+            self.objects_inmove.remove(index);
         }
         index = 0;
         
@@ -832,6 +943,18 @@ impl Game {
                 gl::Uniform2f(move_vel, obj.x, obj.y);
             }
 
+            for obj in self.objects_inmove.iter() {
+                let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                let view_loc = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                obj.program.set_active();
+                gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+                let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                let move_vel = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                obj.program.set_active();
+                gl::Uniform2f(move_vel, obj.x, obj.y);
+            }
+
             let cname = std::ffi::CString::new("view").expect("CString::new failed");
             let view_loc = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
             self.spirit.program.set_active();
@@ -844,6 +967,7 @@ impl Game {
         if !self.is_over {
             self.world.draw();
             for obj in self.objects_inmove.iter() {
+                obj.program.set_active();
                 obj.draw();
             }
             for obj in self.objects_still.iter() {

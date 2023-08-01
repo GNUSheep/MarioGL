@@ -399,7 +399,7 @@ pub struct QuestionMarkBlock {
     pub state: usize,
     pub delay: i32,
     pub is_hit: bool,
-    obj: render::Object,
+    pub obj: render::Object,
     textures: Vec<render::Texture>,
     program: render::Program,
 }
@@ -418,7 +418,8 @@ impl QuestionMarkBlock {
             2, 3, 0
         ];
 
-        let obj = render::Object::create_square_with_points(points, INDCIES);
+        let mut obj = render::Object::create_square_with_points(points, INDCIES);
+        obj.set_cordinates(x, y, h, w);
 
         let mut textures: Vec<render::Texture> = vec![];
     
@@ -467,7 +468,7 @@ impl QuestionMarkBlock {
     pub fn handler(&mut self, objects: &mut Vec<game::Block>) {
         if self.collision_event {
             if self.collision_name == "mushroom" {
-                let mut obj = game::Block::create(self.x, self.y+2.0*self.h, self.h, self.w, false, &Path::new("src/scenes/game/assets/images/mushroom.png"), "mushroom");
+                let mut obj = game::Block::create(0.0, 0.0, self.h, self.w, false, &Path::new("src/scenes/game/assets/images/mushroom.png"), "mushroom");
     
                 let vert_shader = render::Shader::vertex_from_src(
                     &CString::new(include_str!("assets/shaders/mushroom.vert")).unwrap(),
@@ -478,6 +479,9 @@ impl QuestionMarkBlock {
                 ).unwrap();
         
                 let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
+
+                obj.x = self.x;
+                obj.y = self.y+2.0*self.h;
     
                 obj.program = program;
     
