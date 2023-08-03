@@ -162,8 +162,8 @@ impl Spirit {
 }
 
 pub struct Block {
-    x: f32,
-    y: f32,
+    pub x: f32,
+    pub y: f32,
     h: f32,
     w: f32,
     move_acc_y: f32,
@@ -353,6 +353,7 @@ pub struct Game {
     pub spirit: Spirit,
     objects_still: Vec<Block>,
     objects_inmove: Vec<Block>,
+    goombas: Vec<objects::Goomba>,
     delay: i32,
     screen_move_x: f32,
     screen_move_y: f32,
@@ -377,6 +378,7 @@ impl Game {
         let is_endlvl = false;
         let objects_still: Vec<Block> = vec![];
         let objects_inmove: Vec<Block> = vec![];
+        let mut goombas: Vec<objects::Goomba> = vec![];
         let delay = 0;
 
         let score = 0;
@@ -385,13 +387,20 @@ impl Game {
         let world_level = 1;
         let time = 400;
 
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*45 as f32), 
+            -1.0+((16.0/240.0)*7 as f32),
+        ));
+
         let mut hud = render::Texts::init();
         let mut hud_coin_icon = Block::create(-1.0+(8.0/256.0)*23.0, 1.0-(8.0/240.0)*7.0, 8.0/240.0, 8.0/256.0, false, &Path::new("src/scenes/game/assets/images/coin_icon1.png"), "coin_icon");
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon2.png")));
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon3.png")));
 
-        let spirit = Spirit::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
-        Self{world, spirit, objects_still, objects_inmove, delay, screen_move_x, screen_move_y, is_over, is_endlvl, hud, hud_coin_icon, score, coins, world_number, world_level, time}
+        let mut spirit = Spirit::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
+        spirit.x = -0.3;
+        spirit.y = -1.0+((16.0/240.0)*5 as f32);
+        Self{world, spirit, objects_still, objects_inmove, goombas, delay, screen_move_x, screen_move_y, is_over, is_endlvl, hud, hud_coin_icon, score, coins, world_number, world_level, time}
     }
 
     pub fn jump(&mut self) {
@@ -781,6 +790,80 @@ impl Game {
         index = 0;
         
 
+        let mut indexes_to_remove: Vec<usize> = vec![];
+        let mut index = 0;
+        for goomba in self.goombas.iter_mut() {
+            let mut obj_falling = true;
+            for tile in self.world.tiles.iter_mut() {
+                for brick in tile.floor.iter() {
+                    if goomba.obj.check_hitbox(brick) == "bottom" {
+                        goomba.obj.y = brick.y+brick.h+goomba.obj.h;
+                        if goomba.obj.move_acc_y < 0 as f32 {
+                            goomba.obj.move_acc_y = 0.0;
+                        }
+                        obj_falling = false;
+                    }
+                }
+                for pipe in tile.objects.pipes.iter() {
+                    for pipe_obj in pipe.objects.iter() {
+                        if goomba.obj.check_hitbox_pipe(pipe_obj) == "right" || goomba.obj.check_hitbox_pipe(pipe_obj) == "left" {
+                            goomba.obj.move_acc_x *= -1 as f32;
+                        }
+                    }
+                }
+
+                if self.spirit.check_hitbox(&goomba.obj) == "bottom" && !self.spirit.is_dead {
+                    goomba.squash();
+                    self.score += 100;
+                    self.spirit.move_acc_y = 1.5;
+                    goomba.delay = 0;
+                    break;
+                }
+
+                if self.spirit.check_hitbox(&goomba.obj) == "top" ||
+                    self.spirit.check_hitbox(&goomba.obj) == "left" ||
+                    self.spirit.check_hitbox(&goomba.obj) == "right" {
+                     self.spirit.is_dead = true;
+                }
+            }
+            if obj_falling {
+                goomba.obj.move_acc_y -= 0.15;
+            }
+            goomba.obj.y += (deltatime as f32)*0.001*goomba.obj.move_acc_y; 
+
+            if self.spirit.x+1.5 >= goomba.obj.x {
+                goomba.to_move = true;
+            }
+            if goomba.to_move && !goomba.is_squash {
+                goomba.obj.x -= (deltatime as f32)*0.0005;
+            }
+
+            if goomba.delay >= 10 && !goomba.is_squash {
+                goomba.state += 1;
+                if goomba.state == 2 {
+                    goomba.state = 0;
+                }
+                goomba.delay = 0;
+            }
+            goomba.delay += 1;
+
+            if goomba.is_squash {
+                goomba.state = 0;
+                if goomba.delay >= 10 {
+                    indexes_to_remove.push(index);
+                }
+            }
+            index += 1;
+        }
+
+        indexes_to_remove.sort();
+        indexes_to_remove.reverse();
+
+        for index in indexes_to_remove {
+            self.goombas.remove(index);
+        }
+        index = 0;
+
         let mut index = 0; 
         let mut indexes_to_remove: Vec<usize> = vec![];
         for obj in self.objects_inmove.iter_mut() {
@@ -896,7 +979,6 @@ impl Game {
         indexes_to_remove.reverse();
 
         for index in indexes_to_remove {
-            println!("{}", index);
             self.objects_inmove.remove(index);
         }
         index = 0;
@@ -972,13 +1054,14 @@ impl Game {
             self.spirit.state = 1;
         }
 
-        if self.spirit.x >= 0.5-(self.screen_move_x) && !self.spirit.is_underground {
+        if self.spirit.x >= -0.2-(self.screen_move_x) && !self.spirit.is_underground {
             self.screen_move_x -= (deltatime as f32)*0.001; 
         }
 
-        //if self.spirit.is_dead {
-        //    self.spirit.state = self.spirit.textures.len()-1;
-        //}
+        if self.spirit.is_dead {
+            self.spirit.state = self.spirit.textures.len()-1;
+            self.over();
+        }
 
 
         unsafe {
@@ -1009,6 +1092,18 @@ impl Game {
                 let view_loc = gl::GetUniformLocation(tile.floor[0].program.program, cname.as_ptr());
                 tile.floor[0].program.set_active();
                 gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+                for goomba in self.goombas.iter() {
+                    let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                    let view_loc = gl::GetUniformLocation(goomba.program.program, cname.as_ptr());
+                    goomba.program.set_active();
+                    gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+                    let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                    let move_vel = gl::GetUniformLocation(goomba.program.program, cname.as_ptr());
+                    goomba.program.set_active();
+                    gl::Uniform2f(move_vel, goomba.obj.x, goomba.obj.y);
+                }
             }
 
             for obj in self.objects_still.iter() {
@@ -1051,6 +1146,11 @@ impl Game {
                 obj.draw();
             }
             for obj in self.objects_still.iter() {
+                obj.program.set_active();
+                obj.draw();
+            }
+
+            for obj in self.goombas.iter() {
                 obj.program.set_active();
                 obj.draw();
             }
