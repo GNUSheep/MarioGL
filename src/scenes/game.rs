@@ -250,6 +250,20 @@ impl Block {
         return "nil"
     }
 
+    pub fn check_hitbox_spirit(&self, obj: &Spirit) -> &str {
+        let right: bool = self.x+self.w >= obj.x-obj.w;
+        let left: bool = obj.x+obj.w >= self.x-self.w;
+        let top: bool = self.y+self.h >= obj.y-obj.h;
+        let bottom: bool = obj.y+obj.h >= self.y-self.h;
+        if bottom && left && right && top {
+            if obj.y < self.y {return "bottom"}
+            if obj.y > self.y && (obj.x-obj.w < self.x && self.x < obj.x+obj.w) {return "top"}
+            if obj.x < self.x {return "left"}
+            if obj.x > self.x {return "right"};
+        }
+        return "nil"
+    }
+
     pub fn check_hitbox_question_mark_block(&self, obj: &objects::QuestionMarkBlock) -> &str {
         let right: bool = self.x+self.w >= obj.x-obj.w;
         let left: bool = obj.x+obj.w >= self.x-self.w;
@@ -354,6 +368,7 @@ pub struct Game {
     objects_still: Vec<Block>,
     objects_inmove: Vec<Block>,
     goombas: Vec<objects::Goomba>,
+    troopas: Vec<objects::Troopa>,
     delay: i32,
     screen_move_x: f32,
     screen_move_y: f32,
@@ -379,6 +394,7 @@ impl Game {
         let objects_still: Vec<Block> = vec![];
         let objects_inmove: Vec<Block> = vec![];
         let mut goombas: Vec<objects::Goomba> = vec![];
+        let mut troopas: Vec<objects::Troopa> = vec![];
         let delay = 0;
 
         let score = 0;
@@ -386,11 +402,6 @@ impl Game {
         let world_number = 1;
         let world_level = 1;
         let time = 400;
-
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*45 as f32), 
-            -1.0+((16.0/240.0)*7 as f32),
-        ));
 
         let mut hud = render::Texts::init();
         let mut hud_coin_icon = Block::create(-1.0+(8.0/256.0)*23.0, 1.0-(8.0/240.0)*7.0, 8.0/240.0, 8.0/256.0, false, &Path::new("src/scenes/game/assets/images/coin_icon1.png"), "coin_icon");
@@ -400,7 +411,7 @@ impl Game {
         let mut spirit = Spirit::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
         spirit.x = -0.3;
         spirit.y = -1.0+((16.0/240.0)*5 as f32);
-        Self{world, spirit, objects_still, objects_inmove, goombas, delay, screen_move_x, screen_move_y, is_over, is_endlvl, hud, hud_coin_icon, score, coins, world_number, world_level, time}
+        Self{world, spirit, objects_still, objects_inmove, goombas, troopas, delay, screen_move_x, screen_move_y, is_over, is_endlvl, hud, hud_coin_icon, score, coins, world_number, world_level, time}
     }
 
     pub fn jump(&mut self) {
@@ -789,7 +800,6 @@ impl Game {
         }
         index = 0;
         
-
         let mut indexes_to_remove: Vec<usize> = vec![];
         let mut index = 0;
         for goomba in self.goombas.iter_mut() {
@@ -806,36 +816,78 @@ impl Game {
                 }
                 for pipe in tile.objects.pipes.iter() {
                     for pipe_obj in pipe.objects.iter() {
-                        if goomba.obj.check_hitbox_pipe(pipe_obj) == "right" || goomba.obj.check_hitbox_pipe(pipe_obj) == "left" {
-                            goomba.obj.move_acc_x *= -1 as f32;
+                        if goomba.obj.check_hitbox_pipe(pipe_obj) == "left" {
+                            goomba.obj.x = pipe_obj.x+pipe_obj.w+goomba.obj.w;
+                            goomba.obj.move_acc_x = 1 as f32;
+                        }
+                        if goomba.obj.check_hitbox_pipe(pipe_obj) == "right" {
+                            goomba.obj.x = pipe_obj.x-pipe_obj.w-goomba.obj.w;
+                            goomba.obj.move_acc_x = -1 as f32;
                         }
                     }
                 }
 
-                if self.spirit.check_hitbox(&goomba.obj) == "bottom" && !self.spirit.is_dead {
-                    goomba.squash();
-                    self.score += 100;
-                    self.spirit.move_acc_y = 1.5;
-                    goomba.delay = 0;
-                    break;
+                for stone in tile.objects.stones.iter() {
+                    if goomba.obj.check_hitbox(stone) == "bottom" {
+                        goomba.obj.y = stone.y+stone.h+goomba.obj.h;
+                        if goomba.obj.move_acc_y < 0 as f32 {
+                            goomba.obj.move_acc_y = 0.0;
+                        }
+                        obj_falling = false;
+                    }else if goomba.obj.check_hitbox(stone) == "left" {
+                        goomba.obj.x = stone.x+stone.w+goomba.obj.w+0.01;
+                    }else if goomba.obj.check_hitbox(stone) == "right" {
+                        goomba.obj.x = stone.x-stone.w-goomba.obj.w-0.01;
+                    }
                 }
+    
+                for block in tile.objects.blocks.iter_mut() {
+                    if goomba.obj.check_hitbox(block) == "bottom" {
+                        goomba.obj.y = block.y+block.h+goomba.obj.h;
+                        if goomba.obj.move_acc_y < 0 as f32 {
+                            goomba.obj.move_acc_y = 0.0;
+                        }
+                        obj_falling = false;
+                    }else if goomba.obj.check_hitbox(block) == "left" {
+                        goomba.obj.x = block.x+block.w+goomba.obj.w+0.01;
+                    }else if goomba.obj.check_hitbox(block) == "right" {
+                        goomba.obj.x = block.x-block.w-goomba.obj.w-0.01;
+                    }
+                }
+            }
 
-                if self.spirit.check_hitbox(&goomba.obj) == "top" ||
-                    self.spirit.check_hitbox(&goomba.obj) == "left" ||
-                    self.spirit.check_hitbox(&goomba.obj) == "right" {
-                     self.spirit.is_dead = true;
+            // TODO: goombas collision with eachother
+
+            for troopa in self.troopas.iter() {
+                if goomba.obj.check_hitbox(&troopa.obj) == "left" || goomba.obj.check_hitbox(&troopa.obj) == "right" {
+                    goomba.squash();
+                    goomba.delay = 0;
                 }
+            }
+
+            if self.spirit.check_hitbox(&goomba.obj) == "bottom" && !self.spirit.is_dead {
+                goomba.squash();
+                self.score += 100;
+                self.spirit.move_acc_y = 1.5;
+                goomba.delay = 0;
+                break;
+            }
+
+            if self.spirit.check_hitbox(&goomba.obj) == "top" ||
+                self.spirit.check_hitbox(&goomba.obj) == "left" ||
+                self.spirit.check_hitbox(&goomba.obj) == "right" {
+                 self.spirit.is_dead = true;
             }
             if obj_falling {
                 goomba.obj.move_acc_y -= 0.15;
             }
             goomba.obj.y += (deltatime as f32)*0.001*goomba.obj.move_acc_y; 
 
-            if self.spirit.x+1.5 >= goomba.obj.x {
+            if self.spirit.x+0.5 >= goomba.obj.x {
                 goomba.to_move = true;
             }
             if goomba.to_move && !goomba.is_squash {
-                goomba.obj.x -= (deltatime as f32)*0.0005;
+                goomba.obj.x += (deltatime as f32)*0.0005*goomba.obj.move_acc_x;
             }
 
             if goomba.delay >= 10 && !goomba.is_squash {
@@ -863,6 +915,80 @@ impl Game {
             self.goombas.remove(index);
         }
         index = 0;
+
+        for troopa in self.troopas.iter_mut() {
+            let mut obj_falling = true;
+            for tile in self.world.tiles.iter_mut() {
+                for brick in tile.floor.iter() {
+                    if troopa.obj.check_hitbox(brick) == "bottom" {
+                        troopa.obj.y = brick.y+brick.h+troopa.obj.h;
+                        if troopa.obj.move_acc_y < 0 as f32 {
+                            troopa.obj.move_acc_y = 0.0;
+                        }
+                        obj_falling = false;
+                    }
+                }
+                for pipe in tile.objects.pipes.iter() {
+                    for pipe_obj in pipe.objects.iter() {
+                        if troopa.obj.check_hitbox_pipe(pipe_obj) == "right" {
+                            troopa.obj.x = pipe_obj.x+pipe_obj.w+troopa.obj.w;
+                            troopa.obj.move_acc_x = 1 as f32;
+                        }
+                        if troopa.obj.check_hitbox_pipe(pipe_obj) == "left" {
+                            troopa.obj.x = pipe_obj.x-pipe_obj.w-troopa.obj.w;
+                            troopa.obj.move_acc_x = -1 as f32;
+                        }
+                    }
+                }
+            }
+
+            if self.spirit.check_hitbox(&troopa.obj) == "bottom" && !self.spirit.is_dead && !troopa.is_squash {
+                troopa.squash();
+                self.score += 100;
+                self.spirit.move_acc_y = 1.5;
+                troopa.delay = 0;
+                troopa.state = 0;
+            }
+            
+            if self.spirit.check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && troopa.obj.check_hitbox_spirit(&self.spirit) == "right" && !troopa.to_move_squash {
+                self.spirit.move_acc_y = 1.5;
+                troopa.obj.move_acc_x = -1 as f32;
+                troopa.to_move_squash = true;
+            }else if self.spirit.check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && !troopa.to_move_squash {
+                self.spirit.move_acc_y = 1.5;
+                troopa.obj.move_acc_x = 1 as f32;
+                troopa.to_move_squash = true;
+            }
+            
+            if (self.spirit.check_hitbox(&troopa.obj) == "top" || self.spirit.check_hitbox(&troopa.obj) == "left" || self.spirit.check_hitbox(&troopa.obj) == "right") && (!troopa.is_squash || troopa.to_move_squash) {
+                 self.spirit.is_dead = true;
+            }
+
+            if obj_falling {
+                troopa.obj.move_acc_y -= 0.15;
+            }
+            troopa.obj.y += (deltatime as f32)*0.001*troopa.obj.move_acc_y; 
+
+            if self.spirit.x+1.5 >= troopa.obj.x {
+                troopa.to_move = true;
+            }
+            if troopa.to_move && !troopa.is_squash {
+                troopa.obj.x -= (deltatime as f32)*0.0005;
+            }
+            if troopa.to_move_squash {
+                troopa.obj.x += (deltatime as f32)*0.002*troopa.obj.move_acc_x;
+            }
+
+
+            if troopa.delay >= 10 && !troopa.is_squash {
+                troopa.state += 1;
+                if troopa.state == 2 {
+                    troopa.state = 0;
+                }
+                troopa.delay = 0;
+            }
+            troopa.delay += 1;
+        }
 
         let mut index = 0; 
         let mut indexes_to_remove: Vec<usize> = vec![];
@@ -1104,6 +1230,18 @@ impl Game {
                     goomba.program.set_active();
                     gl::Uniform2f(move_vel, goomba.obj.x, goomba.obj.y);
                 }
+
+                for troopa in self.troopas.iter() {
+                    let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                    let view_loc = gl::GetUniformLocation(troopa.program.program, cname.as_ptr());
+                    troopa.program.set_active();
+                    gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+                    let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                    let move_vel = gl::GetUniformLocation(troopa.program.program, cname.as_ptr());
+                    troopa.program.set_active();
+                    gl::Uniform2f(move_vel, troopa.obj.x, troopa.obj.y);
+                }
             }
 
             for obj in self.objects_still.iter() {
@@ -1151,6 +1289,11 @@ impl Game {
             }
 
             for obj in self.goombas.iter() {
+                obj.program.set_active();
+                obj.draw();
+            }
+
+            for obj in self.troopas.iter() {
                 obj.program.set_active();
                 obj.draw();
             }
