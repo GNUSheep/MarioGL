@@ -16,17 +16,21 @@ pub struct Spirit {
     h: f32,
     w: f32,
     state: usize,
+    level_up: usize,
     is_falling: bool,
     pub is_dead: bool,
+    is_growing: bool,
     is_moving: i32,
     is_turn: bool,
-    is_crouch: bool,
+    pub is_crouch: bool,
+    is_crouch_spirit: bool,
     is_underground: bool,
     delay: i32,
     move_vel_x: i32,
     move_acc_y: f32,
     obj: render::Object,
     textures: Vec<render::Texture>,
+    textures_large: Vec<render::Texture>,
     flip: bool,
     program: render::Program,
 }
@@ -64,6 +68,23 @@ impl Spirit {
         let texture_jump = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_jump.png"));
         textures.push(texture_jump);
 
+        let mut textures_large: Vec<render::Texture> = vec![];
+
+        let texture0 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_large.png"));
+        textures_large.push(texture0);
+        let texture1 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_large_move1.png"));
+        textures_large.push(texture1);
+        let texture2 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_large_move2.png"));
+        textures_large.push(texture2);
+        let texture3 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_large_move3.png"));
+        textures_large.push(texture3);
+
+        let texture_turn = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_large_turn.png"));
+        textures_large.push(texture_turn);
+
+        let texture_jump = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_large_jump.png"));
+        textures_large.push(texture_jump);
+
         unsafe {
             obj.set_vertex_attrib_pointer(0, 
                 3, 
@@ -94,17 +115,32 @@ impl Spirit {
 
         let move_vel_x = 0;
         let state = 0;
+        let level_up = 0;
+        let is_growing = false;
         let is_falling = true;
         let is_dead = false;
         let is_moving = 0;
         let is_turn = false;
         let is_crouch = false;
+        let is_crouch_spirit = false;
         let is_underground = false;
         let delay = 0;
         let move_acc_y = 0.0;
         let flip = false;
          
-        Self{x, y, h, w, state, is_falling, is_dead, is_moving, is_turn, is_crouch, is_underground, delay, move_vel_x, move_acc_y, obj, textures, flip, program}
+        Self{x, y, h, w, state, level_up, is_growing, is_falling, is_dead, is_moving, is_turn, is_crouch, is_crouch_spirit, is_underground, delay, move_vel_x, move_acc_y, obj, textures, textures_large, flip, program}
+    }
+
+    pub fn grow(&mut self) {
+        let x = self.x;
+        let y = self.y;
+        *self = Spirit::create(0.0, 0.0, 24.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario_grow1.png"));
+        self.state = 0;
+        self.x = x;
+        self.y = y+8.0/240.0;
+        self.is_growing = true;
+        self.is_falling = false;
+        self.delay = 0;
     }
 
     pub fn check_hitbox(&self, obj: &Block) -> &str {
@@ -152,9 +188,17 @@ impl Spirit {
     pub unsafe fn draw(&self) {
         self.program.set_active();
         if self.is_falling && !self.is_dead {
-            gl::BindTexture(gl::TEXTURE_2D, self.textures[5].texture);
+            if self.level_up == 1 {
+                gl::BindTexture(gl::TEXTURE_2D, self.textures_large[5].texture);
+            }else {
+                gl::BindTexture(gl::TEXTURE_2D, self.textures[5].texture);
+            }
         }else {
-            gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
+            if self.level_up == 1 {
+                gl::BindTexture(gl::TEXTURE_2D, self.textures_large[self.state].texture);
+            }else {
+                gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
+            }
         }
         gl::BindVertexArray(self.obj.vao);
         gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
@@ -490,10 +534,6 @@ impl Game {
         }
     }
 
-    pub fn crouch(&mut self) {
-        self.spirit.is_crouch = true;
-    }
-
     pub fn go_into_pipe(&mut self, exit: bool) {
         if exit {
             self.spirit.y = -1.0+(16.0/240.0)*(9 as f32);
@@ -588,781 +628,812 @@ impl Game {
     }
 
     pub fn handle(&mut self, deltatime: u32) {
-        // floor collision system
-        self.spirit.is_falling = true;
-
-        let mut go_into_pipe = false;
-        for tile in self.world.tiles.iter_mut() {
-            for brick in tile.floor.iter() {
-                if self.spirit.check_hitbox(brick) == "bottom" {
-                    self.spirit.y = brick.y+brick.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+        if self.spirit.is_growing {
+            self.spirit.delay += 1;
+            if self.spirit.delay == 10 {
+                let x = self.spirit.x;
+                let y = self.spirit.y;
+                self.spirit = Spirit::create(0.0, 0.0, 32.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
+                self.spirit.x = x;
+                self.spirit.y = y;
+                self.spirit.level_up = 1;
+                self.spirit.is_growing = false;
+            }
+        }else {
+            // floor collision system
+            self.spirit.is_falling = true;
+    
+            let mut go_into_pipe = false;
+            for tile in self.world.tiles.iter_mut() {
+                for brick in tile.floor.iter() {
+                    if self.spirit.check_hitbox(brick) == "bottom" {
+                        self.spirit.y = brick.y+brick.h+self.spirit.h;
+                        if self.spirit.move_acc_y < 0 as f32 {
+                            self.spirit.move_acc_y = 0.0;
+                        }
+                        self.spirit.is_falling = false;
                     }
-                    self.spirit.is_falling = false;
+                    else if self.spirit.check_hitbox(brick) == "top" {
+                        self.spirit.y = brick.y-brick.h-self.spirit.h;
+                    }
+                    else if self.spirit.check_hitbox(brick) == "left" {
+                        self.spirit.x = brick.x+brick.w+self.spirit.w+0.01;
+                    }
+                    else if self.spirit.check_hitbox(brick) == "right" {
+                        self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
+                    }
                 }
-                else if self.spirit.check_hitbox(brick) == "top" {
-                    self.spirit.y = brick.y-brick.h-self.spirit.w;
+    
+                for stone in tile.objects.stones.iter() {
+                    if self.spirit.check_hitbox(stone) == "bottom" {
+                        self.spirit.y = stone.y+stone.h+self.spirit.h;
+                        if self.spirit.move_acc_y < 0 as f32 {
+                            self.spirit.move_acc_y = 0.0;
+                        }
+                        self.spirit.is_falling = false;
+                    }else if self.spirit.check_hitbox(stone) == "top" {
+                        self.spirit.y = stone.y-stone.h-self.spirit.h;
+                    }else if self.spirit.check_hitbox(stone) == "left" {
+                        self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
+                    }else if self.spirit.check_hitbox(stone) == "right" {
+                        self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
+                    }
                 }
-                else if self.spirit.check_hitbox(brick) == "left" {
-                    self.spirit.x = brick.x+brick.w+self.spirit.w+0.01;
+    
+                for block in tile.objects.blocks.iter_mut() {
+                    if self.spirit.check_hitbox(block) == "bottom" {
+                        self.spirit.y = block.y+block.h+self.spirit.h;
+                        if self.spirit.move_acc_y < 0 as f32 {
+                            self.spirit.move_acc_y = 0.0;
+                        }
+                        self.spirit.is_falling = false;
+                    }else if self.spirit.check_hitbox(block) == "top" {
+                        self.spirit.y = block.y-block.h-self.spirit.h;
+                        if block.collision_name == "star" {
+                            block.handle(&mut self.objects_inmove);
+                        }else {
+                            block.handle(&mut self.objects_still);
+                        }
+                        self.spirit.move_acc_y = -1.0
+                    }else if self.spirit.check_hitbox(block) == "left" {
+                        self.spirit.x = block.x+block.w+self.spirit.w+0.01;
+                    }else if self.spirit.check_hitbox(block) == "right" {
+                        self.spirit.x = block.x-block.w-self.spirit.w-0.01;
+                    }
                 }
-                else if self.spirit.check_hitbox(brick) == "right" {
-                    self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
+    
+                for pipe in tile.objects.pipes.iter() {
+                    for obj in pipe.objects.iter() {
+                        if self.spirit.check_hitbox_pipe(obj) == "bottom" {
+                            self.spirit.y = obj.y+obj.h+self.spirit.h;
+                            if self.spirit.move_acc_y < 0 as f32 {
+                                self.spirit.move_acc_y = 0.0;
+                            }
+                            self.spirit.is_falling = false;
+    
+                            if self.spirit.is_crouch && pipe.is_collision {
+                                go_into_pipe = true;
+                            }
+                        }else if self.spirit.check_hitbox_pipe(obj) == "top" {
+                            self.spirit.y = obj.y-obj.h-self.spirit.w;
+                        }else if self.spirit.check_hitbox_pipe(obj) == "left" {
+                            self.spirit.x = obj.x+obj.w+self.spirit.w+0.01;
+                        }else if self.spirit.check_hitbox_pipe(obj) == "right" {
+                            self.spirit.x = obj.x-obj.w-self.spirit.w-0.01;
+                        }
+                    }
+                }
+                
+                // Question mark box collision handling and animation
+                for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
+                    question_mark_block.delay += 1;
+    
+                    if question_mark_block.delay >= 15 && !question_mark_block.is_hit {
+                        question_mark_block.delay = 0;
+                        question_mark_block.state += 1;
+                        if question_mark_block.state == 3 {
+                            question_mark_block.state = 0;
+                        }
+                    }
+    
+                    if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
+                        self.spirit.y = question_mark_block.y+question_mark_block.h+self.spirit.h;
+                        if self.spirit.move_acc_y < 0 as f32 {
+                            self.spirit.move_acc_y = 0.0;
+                        }
+                        self.spirit.is_falling = false;
+                    }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "top" {
+                        self.spirit.y = question_mark_block.y-question_mark_block.h-self.spirit.h;
+                        if question_mark_block.collision_name == "mushroom" {
+                            question_mark_block.handler(&mut self.objects_inmove);
+                        }else {
+                            question_mark_block.handler(&mut self.objects_still);
+                        }
+    
+                        self.spirit.move_acc_y = -1.0
+                    }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "left" {
+                        self.spirit.x = question_mark_block.x+question_mark_block.w+self.spirit.w+0.01;
+                    }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "right" {
+                        self.spirit.x = question_mark_block.x-question_mark_block.w-self.spirit.w-0.01;
+                    }
+                }
+    
+                for flag in tile.objects.flag.iter() {
+                    for obj in flag.objects.iter() {
+                        if  self.spirit.check_hitbox_pipe(obj) == "bottom" || 
+                        self.spirit.check_hitbox_pipe(obj) == "top" ||
+                        self.spirit.check_hitbox_pipe(obj) == "left" ||
+                        self.spirit.check_hitbox_pipe(obj) == "right"  
+                        { 
+                            self.is_endlvl = true;
+                            self.spirit.delay = 0;
+                        }
+                    }
                 }
             }
-
-            for stone in tile.objects.stones.iter() {
-                if self.spirit.check_hitbox(stone) == "bottom" {
-                    self.spirit.y = stone.y+stone.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
-                    }
-                    self.spirit.is_falling = false;
-                }else if self.spirit.check_hitbox(stone) == "top" {
-                    self.spirit.y = stone.y-stone.h-self.spirit.w;
-                }else if self.spirit.check_hitbox(stone) == "left" {
-                    self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
-                }else if self.spirit.check_hitbox(stone) == "right" {
-                    self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
-                }
+            
+            if go_into_pipe {
+                self.go_into_pipe(false);
             }
-
-            for block in tile.objects.blocks.iter_mut() {
-                if self.spirit.check_hitbox(block) == "bottom" {
-                    self.spirit.y = block.y+block.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+            go_into_pipe = false;
+    
+            let mut indexes_to_remove: Vec<usize> = vec![];
+            let mut index = 0;
+            for tile in self.world.tiles_underground.iter() {
+                for brick in tile.floor.iter() {
+                    if self.spirit.check_hitbox(brick) == "bottom" {
+                        self.spirit.y = brick.y+brick.h+self.spirit.h;
+                        if self.spirit.move_acc_y < 0 as f32 {
+                            self.spirit.move_acc_y = 0.0;
+                        }
+                        self.spirit.is_falling = false;
                     }
-                    self.spirit.is_falling = false;
-                }else if self.spirit.check_hitbox(block) == "top" {
-                    self.spirit.y = block.y-block.h-self.spirit.w;
-
-                    if block.collision_name == "star" {
-                        block.handle(&mut self.objects_inmove);
-                    }else {
-                        block.handle(&mut self.objects_still);
+                    else if self.spirit.check_hitbox(brick) == "top" {
+                        self.spirit.y = brick.y-brick.h-self.spirit.h;
                     }
-                    self.spirit.move_acc_y = -1.0
-                }else if self.spirit.check_hitbox(block) == "left" {
-                    self.spirit.x = block.x+block.w+self.spirit.w+0.01;
-                }else if self.spirit.check_hitbox(block) == "right" {
-                    self.spirit.x = block.x-block.w-self.spirit.w-0.01;
+                    else if self.spirit.check_hitbox(brick) == "left" {
+                        self.spirit.x = brick.x+brick.w+self.spirit.w+0.01;
+                    }
+                    else if self.spirit.check_hitbox(brick) == "right" {
+                        self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
+                    }
                 }
-            }
-
-            for pipe in tile.objects.pipes.iter() {
-                for obj in pipe.objects.iter() {
+    
+                for stone in tile.wall.iter() {
+                    if self.spirit.check_hitbox(stone) == "bottom" {
+                        self.spirit.y = stone.y+stone.h+self.spirit.h;
+                    }
+                    else if self.spirit.check_hitbox(stone) == "left" {
+                        self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
+                    }
+                    else if self.spirit.check_hitbox(stone) == "right" {
+                        self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
+                    }
+                }
+    
+                for stone in tile.objects.blocks.iter() {
+                    if self.spirit.check_hitbox(stone) == "bottom" {
+                        self.spirit.y = stone.y+stone.h+self.spirit.h;
+                        if self.spirit.move_acc_y < 0 as f32 {
+                            self.spirit.move_acc_y = 0.0;
+                        }
+                        self.spirit.is_falling = false;
+                    }
+                    else if self.spirit.check_hitbox(stone) == "top" {
+                        self.spirit.y = stone.y-stone.h-self.spirit.h;
+                    }
+                    else if self.spirit.check_hitbox(stone) == "left" {
+                        self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
+                    }
+                    else if self.spirit.check_hitbox(stone) == "right" {
+                        self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
+                    } 
+                }
+    
+                for obj in tile.pipe.objects.iter() {
                     if self.spirit.check_hitbox_pipe(obj) == "bottom" {
                         self.spirit.y = obj.y+obj.h+self.spirit.h;
                         if self.spirit.move_acc_y < 0 as f32 {
                             self.spirit.move_acc_y = 0.0;
                         }
                         self.spirit.is_falling = false;
-
-                        if self.spirit.is_crouch && pipe.is_collision {
-                            go_into_pipe = true;
-                        }
                     }else if self.spirit.check_hitbox_pipe(obj) == "top" {
                         self.spirit.y = obj.y-obj.h-self.spirit.w;
-                    }else if self.spirit.check_hitbox_pipe(obj) == "left" {
+                    }
+                    else if self.spirit.check_hitbox_pipe(obj) == "left" {
                         self.spirit.x = obj.x+obj.w+self.spirit.w+0.01;
-                    }else if self.spirit.check_hitbox_pipe(obj) == "right" {
+                    }
+                    else if self.spirit.check_hitbox_pipe(obj) == "right" {
                         self.spirit.x = obj.x-obj.w-self.spirit.w-0.01;
+    
+                        go_into_pipe = true;
                     }
+                }
+                
+                for coin in tile.objects.coins.iter() {
+                    if  self.spirit.check_hitbox(coin) == "bottom" ||
+                        self.spirit.check_hitbox(coin) == "top" ||
+                        self.spirit.check_hitbox(coin) == "left" ||
+                        self.spirit.check_hitbox(coin) == "right"  
+                    {   
+                        indexes_to_remove.push(index);
+                        self.coins += 1;
+                        self.score += 200;
+                    }
+                    index += 1;
                 }
             }
-            
-            // Question mark box collision handling and animation
-            for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
-                question_mark_block.delay += 1;
-
-                if question_mark_block.delay >= 15 && !question_mark_block.is_hit {
-                    question_mark_block.delay = 0;
-                    question_mark_block.state += 1;
-                    if question_mark_block.state == 3 {
-                        question_mark_block.state = 0;
-                    }
-                }
-
-                if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
-                    self.spirit.y = question_mark_block.y+question_mark_block.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
-                    }
-                    self.spirit.is_falling = false;
-                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "top" {
-                    self.spirit.y = question_mark_block.y-question_mark_block.h-self.spirit.w;
-                    if question_mark_block.collision_name == "mushroom" {
-                        question_mark_block.handler(&mut self.objects_inmove);
-                    }else {
-                        question_mark_block.handler(&mut self.objects_still);
-                    }
-
-                    self.spirit.move_acc_y = -1.0
-                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "left" {
-                    self.spirit.x = question_mark_block.x+question_mark_block.w+self.spirit.w+0.01;
-                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "right" {
-                    self.spirit.x = question_mark_block.x-question_mark_block.w-self.spirit.w-0.01;
-                }
+    
+            indexes_to_remove.sort();
+            indexes_to_remove.reverse();
+    
+            for index in indexes_to_remove {
+                self.world.tiles_underground[0].objects.coins.remove(index);
             }
-
-            for flag in tile.objects.flag.iter() {
-                for obj in flag.objects.iter() {
-                    if  self.spirit.check_hitbox_pipe(obj) == "bottom" || 
-                    self.spirit.check_hitbox_pipe(obj) == "top" ||
-                    self.spirit.check_hitbox_pipe(obj) == "left" ||
-                    self.spirit.check_hitbox_pipe(obj) == "right"  
-                    { 
-                        self.is_endlvl = true;
-                        self.spirit.delay = 0;
+    
+            if go_into_pipe {
+                self.go_into_pipe(true);
+            }
+            // still objects animations and collision
+            let mut index = 0; 
+            let mut indexes_to_remove: Vec<usize> = vec![];
+            if self.delay >= 5 {
+                for obj in self.objects_still.iter_mut() {
+                    if obj.collision_name == "coin".to_string() {
+                        obj.state += 1;
+                        if obj.state == 4 {
+                            obj.state = 0;
+                        }
                     }
                 }
-            }
-        }
-        
-        if go_into_pipe {
-            self.spirit.is_crouch = false;
-            self.go_into_pipe(false);
-        }
-        go_into_pipe = false;
-        self.spirit.is_crouch = false;
-
-        let mut indexes_to_remove: Vec<usize> = vec![];
-        let mut index = 0;
-        for tile in self.world.tiles_underground.iter() {
-            for brick in tile.floor.iter() {
-                if self.spirit.check_hitbox(brick) == "bottom" {
-                    self.spirit.y = brick.y+brick.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+                for obj in self.objects_inmove.iter_mut() {
+                    if obj.collision_name == "star".to_string() {
+                        obj.state += 1;
+                        if obj.state == 4 {
+                            obj.state = 0;
+                        }
                     }
-                    self.spirit.is_falling = false;
                 }
-                else if self.spirit.check_hitbox(brick) == "top" {
-                    self.spirit.y = brick.y-brick.h-self.spirit.w;
-                }
-                else if self.spirit.check_hitbox(brick) == "left" {
-                    self.spirit.x = brick.x+brick.w+self.spirit.w+0.01;
-                }
-                else if self.spirit.check_hitbox(brick) == "right" {
-                    self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
-                }
+                self.delay = 0;
             }
-
-            for stone in tile.wall.iter() {
-                if self.spirit.check_hitbox(stone) == "bottom" {
-                    self.spirit.y = stone.y+stone.h+self.spirit.h;
-                }
-                else if self.spirit.check_hitbox(stone) == "left" {
-                    self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
-                }
-                else if self.spirit.check_hitbox(stone) == "right" {
-                    self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
-                }
-            }
-
-            for stone in tile.objects.blocks.iter() {
-                if self.spirit.check_hitbox(stone) == "bottom" {
-                    self.spirit.y = stone.y+stone.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+            for obj in self.objects_still.iter_mut() {
+                if obj.collision_name == "coin".to_string() {
+                    if obj.move_acc_y < 0.0 {
+                        indexes_to_remove.push(index);
+                        self.coins += 1;
+                        self.score += 200;
                     }
-                    self.spirit.is_falling = false;
-                }
-                else if self.spirit.check_hitbox(stone) == "top" {
-                    self.spirit.y = stone.y-stone.h-self.spirit.w;
-                }
-                else if self.spirit.check_hitbox(stone) == "left" {
-                    self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
-                }
-                else if self.spirit.check_hitbox(stone) == "right" {
-                    self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
-                } 
-            }
-
-            for obj in tile.pipe.objects.iter() {
-                if self.spirit.check_hitbox_pipe(obj) == "bottom" {
-                    self.spirit.y = obj.y+obj.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
-                    }
-                    self.spirit.is_falling = false;
-                }else if self.spirit.check_hitbox_pipe(obj) == "top" {
-                    self.spirit.y = obj.y-obj.h-self.spirit.w;
-                }
-                else if self.spirit.check_hitbox_pipe(obj) == "left" {
-                    self.spirit.x = obj.x+obj.w+self.spirit.w+0.01;
-                }
-                else if self.spirit.check_hitbox_pipe(obj) == "right" {
-                    self.spirit.x = obj.x-obj.w-self.spirit.w-0.01;
-
-                    go_into_pipe = true;
-                }
-            }
-            
-            for coin in tile.objects.coins.iter() {
-                if  self.spirit.check_hitbox(coin) == "bottom" ||
-                    self.spirit.check_hitbox(coin) == "top" ||
-                    self.spirit.check_hitbox(coin) == "left" ||
-                    self.spirit.check_hitbox(coin) == "right"  
-                {   
-                    indexes_to_remove.push(index);
-                    self.coins += 1;
-                    self.score += 200;
+                    obj.move_acc_y -= 0.15;
+                    obj.y += (deltatime as f32)*0.0017*obj.move_acc_y;  
                 }
                 index += 1;
             }
-        }
-
-        indexes_to_remove.sort();
-        indexes_to_remove.reverse();
-
-        for index in indexes_to_remove {
-            self.world.tiles_underground[0].objects.coins.remove(index);
-        }
-
-        if go_into_pipe {
-            self.go_into_pipe(true);
-        }
-        self.spirit.is_crouch = false;
-        // still objects animations and collision
-        let mut index = 0; 
-        let mut indexes_to_remove: Vec<usize> = vec![];
-        if self.delay >= 5 {
-            for obj in self.objects_still.iter_mut() {
-                if obj.collision_name == "coin".to_string() {
-                    obj.state += 1;
-                    if obj.state == 4 {
-                        obj.state = 0;
+    
+            indexes_to_remove.sort();
+            indexes_to_remove.reverse();
+    
+            for index in indexes_to_remove {
+                self.objects_still.remove(index);
+            }
+            index = 0;
+            
+            let mut indexes_to_remove: Vec<usize> = vec![];
+            let mut index = 0;
+            for goomba in self.goombas.iter_mut() {
+                let mut obj_falling = true;
+                for tile in self.world.tiles.iter_mut() {
+                    for brick in tile.floor.iter() {
+                        if goomba.obj.check_hitbox(brick) == "bottom" {
+                            goomba.obj.y = brick.y+brick.h+goomba.obj.h;
+                            if goomba.obj.move_acc_y < 0 as f32 {
+                                goomba.obj.move_acc_y = 0.0;
+                            }
+                            obj_falling = false;
+                        }
                     }
-                }
-            }
-            for obj in self.objects_inmove.iter_mut() {
-                if obj.collision_name == "star".to_string() {
-                    obj.state += 1;
-                    if obj.state == 4 {
-                        obj.state = 0;
+                    for pipe in tile.objects.pipes.iter() {
+                        for pipe_obj in pipe.objects.iter() {
+                            if goomba.obj.check_hitbox_pipe(pipe_obj) == "left" {
+                                goomba.obj.x = pipe_obj.x+pipe_obj.w+goomba.obj.w;
+                                goomba.obj.move_acc_x = 1 as f32;
+                            }
+                            if goomba.obj.check_hitbox_pipe(pipe_obj) == "right" {
+                                goomba.obj.x = pipe_obj.x-pipe_obj.w-goomba.obj.w;
+                                goomba.obj.move_acc_x = -1 as f32;
+                            }
+                        }
                     }
-                }
-            }
-            self.delay = 0;
-        }
-        for obj in self.objects_still.iter_mut() {
-            if obj.collision_name == "coin".to_string() {
-                if obj.move_acc_y < 0.0 {
-                    indexes_to_remove.push(index);
-                    self.coins += 1;
-                    self.score += 200;
-                }
-                obj.move_acc_y -= 0.15;
-                obj.y += (deltatime as f32)*0.0017*obj.move_acc_y;  
-            }
-            index += 1;
-        }
-
-        indexes_to_remove.sort();
-        indexes_to_remove.reverse();
-
-        for index in indexes_to_remove {
-            self.objects_still.remove(index);
-        }
-        index = 0;
+    
+                    for stone in tile.objects.stones.iter() {
+                        if goomba.obj.check_hitbox(stone) == "bottom" {
+                            goomba.obj.y = stone.y+stone.h+goomba.obj.h;
+                            if goomba.obj.move_acc_y < 0 as f32 {
+                                goomba.obj.move_acc_y = 0.0;
+                            }
+                            obj_falling = false;
+                        }else if goomba.obj.check_hitbox(stone) == "left" {
+                            goomba.obj.x = stone.x+stone.w+goomba.obj.w+0.01;
+                        }else if goomba.obj.check_hitbox(stone) == "right" {
+                            goomba.obj.x = stone.x-stone.w-goomba.obj.w-0.01;
+                        }
+                    }
         
-        let mut indexes_to_remove: Vec<usize> = vec![];
-        let mut index = 0;
-        for goomba in self.goombas.iter_mut() {
-            let mut obj_falling = true;
-            for tile in self.world.tiles.iter_mut() {
-                for brick in tile.floor.iter() {
-                    if goomba.obj.check_hitbox(brick) == "bottom" {
-                        goomba.obj.y = brick.y+brick.h+goomba.obj.h;
-                        if goomba.obj.move_acc_y < 0 as f32 {
-                            goomba.obj.move_acc_y = 0.0;
+                    for block in tile.objects.blocks.iter_mut() {
+                        if goomba.obj.check_hitbox(block) == "bottom" {
+                            goomba.obj.y = block.y+block.h+goomba.obj.h;
+                            if goomba.obj.move_acc_y < 0 as f32 {
+                                goomba.obj.move_acc_y = 0.0;
+                            }
+                            obj_falling = false;
+                        }else if goomba.obj.check_hitbox(block) == "left" {
+                            goomba.obj.x = block.x+block.w+goomba.obj.w+0.01;
+                        }else if goomba.obj.check_hitbox(block) == "right" {
+                            goomba.obj.x = block.x-block.w-goomba.obj.w-0.01;
                         }
-                        obj_falling = false;
-                    }
-                }
-                for pipe in tile.objects.pipes.iter() {
-                    for pipe_obj in pipe.objects.iter() {
-                        if goomba.obj.check_hitbox_pipe(pipe_obj) == "left" {
-                            goomba.obj.x = pipe_obj.x+pipe_obj.w+goomba.obj.w;
-                            goomba.obj.move_acc_x = 1 as f32;
-                        }
-                        if goomba.obj.check_hitbox_pipe(pipe_obj) == "right" {
-                            goomba.obj.x = pipe_obj.x-pipe_obj.w-goomba.obj.w;
-                            goomba.obj.move_acc_x = -1 as f32;
+                        
+                        if self.spirit.check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
+                            goomba.squash();
+                            goomba.delay = 0;
                         }
                     }
-                }
-
-                for stone in tile.objects.stones.iter() {
-                    if goomba.obj.check_hitbox(stone) == "bottom" {
-                        goomba.obj.y = stone.y+stone.h+goomba.obj.h;
-                        if goomba.obj.move_acc_y < 0 as f32 {
-                            goomba.obj.move_acc_y = 0.0;
+    
+                    for question_mark_block in tile.objects.question_mark_blocks.iter() {
+                        if goomba.obj.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
+                            goomba.obj.y = question_mark_block.y+question_mark_block.h+goomba.obj.h;
+                            if goomba.obj.move_acc_y < 0 as f32 {
+                                goomba.obj.move_acc_y = 0.0;
+                            }
+                            obj_falling = false;
                         }
-                        obj_falling = false;
-                    }else if goomba.obj.check_hitbox(stone) == "left" {
-                        goomba.obj.x = stone.x+stone.w+goomba.obj.w+0.01;
-                    }else if goomba.obj.check_hitbox(stone) == "right" {
-                        goomba.obj.x = stone.x-stone.w-goomba.obj.w-0.01;
+    
+                        if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "top" && goomba.obj.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
+                            goomba.squash();
+                            goomba.delay = 0;
+                        }
                     }
                 }
     
-                for block in tile.objects.blocks.iter_mut() {
-                    if goomba.obj.check_hitbox(block) == "bottom" {
-                        goomba.obj.y = block.y+block.h+goomba.obj.h;
-                        if goomba.obj.move_acc_y < 0 as f32 {
-                            goomba.obj.move_acc_y = 0.0;
-                        }
-                        obj_falling = false;
-                    }else if goomba.obj.check_hitbox(block) == "left" {
-                        goomba.obj.x = block.x+block.w+goomba.obj.w+0.01;
-                    }else if goomba.obj.check_hitbox(block) == "right" {
-                        goomba.obj.x = block.x-block.w-goomba.obj.w-0.01;
-                    }
-                    
-                    if self.spirit.check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
+                // TODO: goombas collision with eachother
+    
+                for troopa in self.troopas.iter() {
+                    if goomba.obj.check_hitbox(&troopa.obj) == "left" || goomba.obj.check_hitbox(&troopa.obj) == "right" {
                         goomba.squash();
                         goomba.delay = 0;
                     }
                 }
-
-                for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
-                    if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
-                        goomba.obj.y = question_mark_block.y+question_mark_block.h+goomba.obj.h;
-                        if goomba.obj.move_acc_y < 0 as f32 {
-                            goomba.obj.move_acc_y = 0.0;
-                        }
-                        obj_falling = false;
-                    }
-
-                    if self.spirit.check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
-                        goomba.squash();
-                        goomba.delay = 0;
-                    }
-                }
-            }
-
-            // TODO: goombas collision with eachother
-
-            for troopa in self.troopas.iter() {
-                if goomba.obj.check_hitbox(&troopa.obj) == "left" || goomba.obj.check_hitbox(&troopa.obj) == "right" {
+    
+                if self.spirit.check_hitbox(&goomba.obj) == "bottom" && !self.spirit.is_dead {
                     goomba.squash();
+                    self.score += 100;
+                    self.spirit.move_acc_y = 1.5;
+                    goomba.delay = 0;
+                    break;
+                }
+    
+                if self.spirit.check_hitbox(&goomba.obj) == "top" ||
+                    self.spirit.check_hitbox(&goomba.obj) == "left" ||
+                    self.spirit.check_hitbox(&goomba.obj) == "right" {
+                     self.spirit.is_dead = true;
+                }
+                if obj_falling {
+                    goomba.obj.move_acc_y -= 0.15;
+                }
+                goomba.obj.y += (deltatime as f32)*0.001*goomba.obj.move_acc_y; 
+    
+                if self.spirit.x+1.5 >= goomba.obj.x {
+                    goomba.to_move = true;
+                }
+                if goomba.to_move && !goomba.is_squash {
+                    goomba.obj.x += (deltatime as f32)*0.0005*goomba.obj.move_acc_x;
+                }
+    
+                if goomba.delay >= 10 && !goomba.is_squash {
+                    goomba.state += 1;
+                    if goomba.state == 2 {
+                        goomba.state = 0;
+                    }
                     goomba.delay = 0;
                 }
-            }
-
-            if self.spirit.check_hitbox(&goomba.obj) == "bottom" && !self.spirit.is_dead {
-                goomba.squash();
-                self.score += 100;
-                self.spirit.move_acc_y = 1.5;
-                goomba.delay = 0;
-                break;
-            }
-
-            if self.spirit.check_hitbox(&goomba.obj) == "top" ||
-                self.spirit.check_hitbox(&goomba.obj) == "left" ||
-                self.spirit.check_hitbox(&goomba.obj) == "right" {
-                 self.spirit.is_dead = true;
-            }
-            if obj_falling {
-                goomba.obj.move_acc_y -= 0.15;
-            }
-            goomba.obj.y += (deltatime as f32)*0.001*goomba.obj.move_acc_y; 
-
-            if self.spirit.x+1.5 >= goomba.obj.x {
-                goomba.to_move = true;
-            }
-            if goomba.to_move && !goomba.is_squash {
-                goomba.obj.x += (deltatime as f32)*0.0005*goomba.obj.move_acc_x;
-            }
-
-            if goomba.delay >= 10 && !goomba.is_squash {
-                goomba.state += 1;
-                if goomba.state == 2 {
+                goomba.delay += 1;
+    
+                if goomba.is_squash {
                     goomba.state = 0;
-                }
-                goomba.delay = 0;
-            }
-            goomba.delay += 1;
-
-            if goomba.is_squash {
-                goomba.state = 0;
-                if goomba.delay >= 10 {
-                    indexes_to_remove.push(index);
-                }
-            }
-            index += 1;
-        }
-
-        indexes_to_remove.sort();
-        indexes_to_remove.reverse();
-
-        for index in indexes_to_remove {
-            self.goombas.remove(index);
-        }
-        index = 0;
-
-        for troopa in self.troopas.iter_mut() {
-            let mut obj_falling = true;
-            for tile in self.world.tiles.iter_mut() {
-                for brick in tile.floor.iter() {
-                    if troopa.obj.check_hitbox(brick) == "bottom" {
-                        troopa.obj.y = brick.y+brick.h+troopa.obj.h;
-                        if troopa.obj.move_acc_y < 0 as f32 {
-                            troopa.obj.move_acc_y = 0.0;
-                        }
-                        obj_falling = false;
+                    if goomba.delay >= 10 {
+                        indexes_to_remove.push(index);
                     }
                 }
-                for pipe in tile.objects.pipes.iter() {
-                    for pipe_obj in pipe.objects.iter() {
-                        if troopa.obj.check_hitbox_pipe(pipe_obj) == "right" {
-                            troopa.obj.x = pipe_obj.x+pipe_obj.w+troopa.obj.w;
-                            troopa.obj.move_acc_x = 1 as f32;
+                index += 1;
+            }
+    
+            indexes_to_remove.sort();
+            indexes_to_remove.reverse();
+    
+            for index in indexes_to_remove {
+                self.goombas.remove(index);
+            }
+            index = 0;
+    
+            for troopa in self.troopas.iter_mut() {
+                let mut obj_falling = true;
+                for tile in self.world.tiles.iter_mut() {
+                    for brick in tile.floor.iter() {
+                        if troopa.obj.check_hitbox(brick) == "bottom" {
+                            troopa.obj.y = brick.y+brick.h+troopa.obj.h;
+                            if troopa.obj.move_acc_y < 0 as f32 {
+                                troopa.obj.move_acc_y = 0.0;
+                            }
+                            obj_falling = false;
                         }
-                        if troopa.obj.check_hitbox_pipe(pipe_obj) == "left" {
-                            troopa.obj.x = pipe_obj.x-pipe_obj.w-troopa.obj.w;
-                            troopa.obj.move_acc_x = -1 as f32;
+                    }
+                    for pipe in tile.objects.pipes.iter() {
+                        for pipe_obj in pipe.objects.iter() {
+                            if troopa.obj.check_hitbox_pipe(pipe_obj) == "right" {
+                                troopa.obj.x = pipe_obj.x+pipe_obj.w+troopa.obj.w;
+                                troopa.obj.move_acc_x = 1 as f32;
+                            }
+                            if troopa.obj.check_hitbox_pipe(pipe_obj) == "left" {
+                                troopa.obj.x = pipe_obj.x-pipe_obj.w-troopa.obj.w;
+                                troopa.obj.move_acc_x = -1 as f32;
+                            }
                         }
                     }
                 }
-            }
-
-            if self.spirit.check_hitbox(&troopa.obj) == "bottom" && !self.spirit.is_dead && !troopa.is_squash {
-                troopa.squash();
-                self.score += 100;
-                self.spirit.move_acc_y = 1.5;
-                troopa.delay = 0;
-                troopa.state = 0;
-            }
-            
-            if self.spirit.check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && troopa.obj.check_hitbox_spirit(&self.spirit) == "right" && !troopa.to_move_squash {
-                self.spirit.move_acc_y = 1.5;
-                troopa.obj.move_acc_x = -1 as f32;
-                troopa.to_move_squash = true;
-            }else if self.spirit.check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && !troopa.to_move_squash {
-                self.spirit.move_acc_y = 1.5;
-                troopa.obj.move_acc_x = 1 as f32;
-                troopa.to_move_squash = true;
-            }
-            
-            if (self.spirit.check_hitbox(&troopa.obj) == "top" || self.spirit.check_hitbox(&troopa.obj) == "left" || self.spirit.check_hitbox(&troopa.obj) == "right") && (!troopa.is_squash || troopa.to_move_squash) {
-                 self.spirit.is_dead = true;
-            }
-
-            if obj_falling {
-                troopa.obj.move_acc_y -= 0.15;
-            }
-            troopa.obj.y += (deltatime as f32)*0.001*troopa.obj.move_acc_y; 
-
-            if self.spirit.x+1.5 >= troopa.obj.x {
-                troopa.to_move = true;
-            }
-            if troopa.to_move && !troopa.is_squash {
-                troopa.obj.x -= (deltatime as f32)*0.0005;
-            }
-            if troopa.to_move_squash {
-                troopa.obj.x += (deltatime as f32)*0.002*troopa.obj.move_acc_x;
-            }
-
-
-            if troopa.delay >= 10 && !troopa.is_squash {
-                troopa.state += 1;
-                if troopa.state == 2 {
+    
+                if self.spirit.check_hitbox(&troopa.obj) == "bottom" && !self.spirit.is_dead && !troopa.is_squash {
+                    troopa.squash();
+                    self.score += 100;
+                    self.spirit.move_acc_y = 1.5;
+                    troopa.delay = 0;
                     troopa.state = 0;
                 }
-                troopa.delay = 0;
+                
+                if self.spirit.check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && troopa.obj.check_hitbox_spirit(&self.spirit) == "right" && !troopa.to_move_squash {
+                    self.spirit.move_acc_y = 1.5;
+                    troopa.obj.move_acc_x = -1 as f32;
+                    troopa.to_move_squash = true;
+                }else if self.spirit.check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && !troopa.to_move_squash {
+                    self.spirit.move_acc_y = 1.5;
+                    troopa.obj.move_acc_x = 1 as f32;
+                    troopa.to_move_squash = true;
+                }
+                
+                if (self.spirit.check_hitbox(&troopa.obj) == "top" || self.spirit.check_hitbox(&troopa.obj) == "left" || self.spirit.check_hitbox(&troopa.obj) == "right") && (!troopa.is_squash || troopa.to_move_squash) {
+                     self.spirit.is_dead = true;
+                }
+    
+                if obj_falling {
+                    troopa.obj.move_acc_y -= 0.15;
+                }
+                troopa.obj.y += (deltatime as f32)*0.001*troopa.obj.move_acc_y; 
+    
+                if self.spirit.x+1.5 >= troopa.obj.x {
+                    troopa.to_move = true;
+                }
+                if troopa.to_move && !troopa.is_squash {
+                    troopa.obj.x -= (deltatime as f32)*0.0005;
+                }
+                if troopa.to_move_squash {
+                    troopa.obj.x += (deltatime as f32)*0.002*troopa.obj.move_acc_x;
+                }
+    
+    
+                if troopa.delay >= 10 && !troopa.is_squash {
+                    troopa.state += 1;
+                    if troopa.state == 2 {
+                        troopa.state = 0;
+                    }
+                    troopa.delay = 0;
+                }
+                troopa.delay += 1;
             }
-            troopa.delay += 1;
-        }
-
-        let mut index = 0; 
-        let mut indexes_to_remove: Vec<usize> = vec![];
-        for obj in self.objects_inmove.iter_mut() {
-            if obj.collision_name == "mushroom".to_string() {
-                let mut obj_falling = true;
-                obj.x += (deltatime as f32)*0.0008*obj.move_acc_x;
-                for tile in self.world.tiles.iter_mut() {
-                    for pipe in tile.objects.pipes.iter() {
-                        for pipe_obj in pipe.objects.iter() {
-                            if obj.check_hitbox_pipe(pipe_obj) == "right" || obj.check_hitbox_pipe(pipe_obj) == "left" {
+    
+            let mut index = 0; 
+            let mut indexes_to_remove: Vec<usize> = vec![];
+            for obj in self.objects_inmove.iter_mut() {
+                if obj.collision_name == "mushroom".to_string() {
+                    let mut obj_falling = true;
+                    obj.x += (deltatime as f32)*0.0008*obj.move_acc_x;
+                    for tile in self.world.tiles.iter_mut() {
+                        for pipe in tile.objects.pipes.iter() {
+                            for pipe_obj in pipe.objects.iter() {
+                                if obj.check_hitbox_pipe(pipe_obj) == "right" || obj.check_hitbox_pipe(pipe_obj) == "left" {
+                                    obj.move_acc_x *= -1 as f32;
+                                }
+                            }
+                        }
+                        for block in tile.objects.blocks.iter_mut() {
+                            if obj.check_hitbox(block) == "bottom" {
+                                obj.y = block.y+block.h+obj.h;
+                                if obj.move_acc_y < 0 as f32 {
+                                    obj.move_acc_y = 0.0;
+                                }
+                                obj_falling = false;
+                            }else if obj.check_hitbox(block) == "left" || obj.check_hitbox(block) == "right" {
                                 obj.move_acc_x *= -1 as f32;
                             }
                         }
-                    }
-                    for block in tile.objects.blocks.iter_mut() {
-                        if obj.check_hitbox(block) == "bottom" {
-                            obj.y = block.y+block.h+obj.h;
-                            if obj.move_acc_y < 0 as f32 {
-                                obj.move_acc_y = 0.0;
+                        for block in tile.objects.question_mark_blocks.iter_mut() {
+                            if obj.check_hitbox_question_mark_block(block) == "bottom" {
+                                obj.y = block.y+block.h+obj.h;
+                                if obj.move_acc_y < 0 as f32 {
+                                    obj.move_acc_y = 0.0;
+                                }
+                                obj_falling = false;
                             }
-                            obj_falling = false;
-                        }else if obj.check_hitbox(block) == "left" || obj.check_hitbox(block) == "right" {
-                            obj.move_acc_x *= -1 as f32;
+                        }
+                        for brick in tile.floor.iter() {
+                            if obj.check_hitbox(brick) == "bottom" {
+                                obj.y = brick.y+brick.h+obj.h;
+                                if obj.move_acc_y < 0 as f32 {
+                                    obj.move_acc_y = 0.0;
+                                }
+                                obj_falling = false;
+                            }
                         }
                     }
-                    for block in tile.objects.question_mark_blocks.iter_mut() {
-                        if obj.check_hitbox_question_mark_block(block) == "bottom" {
-                            obj.y = block.y+block.h+obj.h;
-                            if obj.move_acc_y < 0 as f32 {
-                                obj.move_acc_y = 0.0;
-                            }
-                            obj_falling = false;
-                        }
+                    
+                    if self.spirit.check_hitbox(obj) == "bottom" ||
+                        self.spirit.check_hitbox(obj) == "top" ||
+                        self.spirit.check_hitbox(obj) == "left" ||
+                        self.spirit.check_hitbox(obj) == "right" {
+                            self.spirit.grow();
+                            indexes_to_remove.push(index);
                     }
-                    for brick in tile.floor.iter() {
-                        if obj.check_hitbox(brick) == "bottom" {
-                            obj.y = brick.y+brick.h+obj.h;
-                            if obj.move_acc_y < 0 as f32 {
-                                obj.move_acc_y = 0.0;
-                            }
-                            obj_falling = false;
-                        }
+                    
+                    if obj_falling {
+                        obj.move_acc_y -= 0.15;
                     }
-                }
-                
-                if self.spirit.check_hitbox(obj) == "bottom" ||
-                    self.spirit.check_hitbox(obj) == "top" ||
-                    self.spirit.check_hitbox(obj) == "left" ||
-                    self.spirit.check_hitbox(obj) == "right" {
-                        indexes_to_remove.push(index);
-                }
-                
-                if obj_falling {
-                    obj.move_acc_y -= 0.15;
-                }
-                obj.y += (deltatime as f32)*0.001*obj.move_acc_y; 
-            } else if obj.collision_name == "star".to_string() {
-                let mut obj_falling = true;
-                obj.x += (deltatime as f32)*0.0008*obj.move_acc_x;
-                for tile in self.world.tiles.iter_mut() {
-                    for pipe in tile.objects.pipes.iter() {
-                        for pipe_obj in pipe.objects.iter() {
-                            if obj.check_hitbox_pipe(pipe_obj) == "top" {
-                                obj.y = pipe_obj.y+pipe_obj.h+obj.h;
+                    obj.y += (deltatime as f32)*0.001*obj.move_acc_y; 
+                } else if obj.collision_name == "star".to_string() {
+                    let mut obj_falling = true;
+                    obj.x += (deltatime as f32)*0.0008*obj.move_acc_x;
+                    for tile in self.world.tiles.iter_mut() {
+                        for pipe in tile.objects.pipes.iter() {
+                            for pipe_obj in pipe.objects.iter() {
+                                if obj.check_hitbox_pipe(pipe_obj) == "top" {
+                                    obj.y = pipe_obj.y+pipe_obj.h+obj.h;
+                                    obj.move_acc_y = 3.0;
+                                }else if obj.check_hitbox_pipe(pipe_obj) == "right" || obj.check_hitbox_pipe(pipe_obj) == "left" {
+                                    obj.move_acc_x *= -1 as f32;
+                                }
+                            }
+                        }
+                        for block in tile.objects.blocks.iter_mut() {
+                            if obj.check_hitbox(block) == "bottom" {
+                                obj.y = block.y+block.h+obj.h;
                                 obj.move_acc_y = 3.0;
-                            }else if obj.check_hitbox_pipe(pipe_obj) == "right" || obj.check_hitbox_pipe(pipe_obj) == "left" {
+                            }else if obj.check_hitbox(block) == "top" {
+                                obj.move_acc_y *= -1 as f32;
+                            }else if obj.check_hitbox(block) == "left" || obj.check_hitbox(block) == "right" {
                                 obj.move_acc_x *= -1 as f32;
                             }
                         }
-                    }
-                    for block in tile.objects.blocks.iter_mut() {
-                        if obj.check_hitbox(block) == "bottom" {
-                            obj.y = block.y+block.h+obj.h;
-                            obj.move_acc_y = 3.0;
-                        }else if obj.check_hitbox(block) == "top" {
-                            obj.move_acc_y *= -1 as f32;
-                        }else if obj.check_hitbox(block) == "left" || obj.check_hitbox(block) == "right" {
-                            obj.move_acc_x *= -1 as f32;
+                        for block in tile.objects.question_mark_blocks.iter_mut() {
+                            if obj.check_hitbox_question_mark_block(block) == "bottom" {
+                                obj.y = block.y+block.h+obj.h;
+                                obj.move_acc_y = 3.0;
+                            }else if obj.check_hitbox_question_mark_block(block) == "top" {
+                                obj.move_acc_y *= -1 as f32;
+                            }
+                        }
+                        for brick in tile.floor.iter() {
+                            if obj.check_hitbox(brick) == "bottom" {
+                                obj.y = brick.y+brick.h+obj.h;
+                                obj.move_acc_y = 3.0;
+                            }
                         }
                     }
-                    for block in tile.objects.question_mark_blocks.iter_mut() {
-                        if obj.check_hitbox_question_mark_block(block) == "bottom" {
-                            obj.y = block.y+block.h+obj.h;
-                            obj.move_acc_y = 3.0;
-                        }else if obj.check_hitbox_question_mark_block(block) == "top" {
-                            obj.move_acc_y *= -1 as f32;
-                        }
+                    
+                    if self.spirit.check_hitbox(obj) == "bottom" ||
+                        self.spirit.check_hitbox(obj) == "top" ||
+                        self.spirit.check_hitbox(obj) == "left" ||
+                        self.spirit.check_hitbox(obj) == "right" {
+                            indexes_to_remove.push(index);
                     }
-                    for brick in tile.floor.iter() {
-                        if obj.check_hitbox(brick) == "bottom" {
-                            obj.y = brick.y+brick.h+obj.h;
-                            obj.move_acc_y = 3.0;
-                        }
+    
+                    if obj_falling {
+                        obj.move_acc_y -= 0.15;
+                    }
+                    obj.y += (deltatime as f32)*0.001*obj.move_acc_y; 
+                }
+                index += 1;
+            }
+    
+            indexes_to_remove.sort();
+            indexes_to_remove.reverse();
+    
+            for index in indexes_to_remove {
+                self.objects_inmove.remove(index);
+            }
+            index = 0;
+            
+            if self.world.tiles_underground[0].delay >= 10 {
+                for obj in self.world.tiles_underground[0].objects.coins.iter_mut() {
+                    obj.state += 1;
+                    if obj.state == 3 {
+                        obj.state = 0;
                     }
                 }
-                
-                if self.spirit.check_hitbox(obj) == "bottom" ||
-                    self.spirit.check_hitbox(obj) == "top" ||
-                    self.spirit.check_hitbox(obj) == "left" ||
-                    self.spirit.check_hitbox(obj) == "right" {
-                        indexes_to_remove.push(index);
-                }
-
-                if obj_falling {
-                    obj.move_acc_y -= 0.15;
-                }
-                obj.y += (deltatime as f32)*0.001*obj.move_acc_y; 
-            }
-            index += 1;
-        }
-
-        indexes_to_remove.sort();
-        indexes_to_remove.reverse();
-
-        for index in indexes_to_remove {
-            self.objects_inmove.remove(index);
-        }
-        index = 0;
-        
-        if self.world.tiles_underground[0].delay >= 10 {
-            for obj in self.world.tiles_underground[0].objects.coins.iter_mut() {
-                obj.state += 1;
-                if obj.state == 3 {
-                    obj.state = 0;
+                self.world.tiles_underground[0].delay = 0;
+    
+                self.hud_coin_icon.state += 1;
+                if self.hud_coin_icon.state == 3 {
+                    self.hud_coin_icon.state = 0;
                 }
             }
-            self.world.tiles_underground[0].delay = 0;
-
-            self.hud_coin_icon.state += 1;
-            if self.hud_coin_icon.state == 3 {
-                self.hud_coin_icon.state = 0;
+            
+            self.world.tiles_underground[0].delay += 1;
+            self.delay += 1;
+    
+            if self.spirit.is_falling {
+                self.spirit.move_acc_y -= 0.15;
             }
-        }
-        
-        self.world.tiles_underground[0].delay += 1;
-        self.delay += 1;
-
-        if self.spirit.is_falling {
-            self.spirit.move_acc_y -= 0.15;
-        }
-
-        self.spirit.y += (deltatime as f32)*0.001*self.spirit.move_acc_y;
-        
-        //left screen side collision
-        if self.spirit.x-self.spirit.w <= -1.0-(self.screen_move_x) {
-            self.spirit.x = -1.0-(self.screen_move_x)+self.spirit.w;
-        }
-
-        //if self.spirit.y-self.spirit.h <= -1.0 && !self.spirit.is_dead {
-        //    self.dead();
-        //}else if self.spirit.y-self.spirit.h <= -1.0 && self.spirit.is_dead {
-        //    self.over();
-        //}
-
-        // moving
-        if self.spirit.move_vel_x != 0 {
-            if self.spirit.move_vel_x == 1 {
-                self.spirit.flip = true;
-            }else {
-                self.spirit.flip = false;
+    
+            self.spirit.y += (deltatime as f32)*0.001*self.spirit.move_acc_y;
+            
+            //left screen side collision
+            if self.spirit.x-self.spirit.w <= -1.0-(self.screen_move_x) {
+                self.spirit.x = -1.0-(self.screen_move_x)+self.spirit.w;
             }
-
-            if self.spirit.is_moving != 0 && self.spirit.is_moving != self.spirit.move_vel_x {
-                self.spirit.state = 4;
-                self.spirit.is_turn = true;
+    
+            //if self.spirit.y-self.spirit.h <= -1.0 && !self.spirit.is_dead {
+            //    self.dead();
+            //}else if self.spirit.y-self.spirit.h <= -1.0 && self.spirit.is_dead {
+            //    self.over();
+            //}
+    
+            // moving
+            if self.spirit.move_vel_x != 0 {
+                if self.spirit.move_vel_x == 1 {
+                    self.spirit.flip = true;
+                }else {
+                    self.spirit.flip = false;
+                }
+    
+                if self.spirit.is_moving != 0 && self.spirit.is_moving != self.spirit.move_vel_x {
+                    self.spirit.state = 4;
+                    self.spirit.is_turn = true;
+                }
+                self.spirit.is_moving = self.spirit.move_vel_x;
+    
+                self.spirit.x -= self.spirit.move_vel_x  as f32 * ((deltatime as f32)*0.001);
+                self.spirit.delay += 1;
+            }else{
+                self.spirit.is_moving = 0;
+                self.spirit.state = 0;
             }
-            self.spirit.is_moving = self.spirit.move_vel_x;
-
-            self.spirit.x -= self.spirit.move_vel_x  as f32 * ((deltatime as f32)*0.001);
-            self.spirit.delay += 1;
-        }else{
-            self.spirit.is_moving = 0;
-            self.spirit.state = 0;
-        }
-        self.spirit.move_vel_x = 0;
-
-        // animation
-        if self.spirit.delay == 5  {
-            self.spirit.state += 1;
-            self.spirit.delay = 0;
-            if self.spirit.is_turn {
+            self.spirit.move_vel_x = 0;
+    
+            // animation
+            if self.spirit.delay == 5 && !self.spirit.is_crouch {
+                self.spirit.state += 1;
+                self.spirit.delay = 0;
+                if self.spirit.is_turn {
+                    self.spirit.state = 1;
+                    self.spirit.is_turn = false;
+                }
+            }
+    
+            if self.spirit.state == 4 && !self.spirit.is_turn {
                 self.spirit.state = 1;
-                self.spirit.is_turn = false;
             }
-        }
-
-        if self.spirit.state == 4 && !self.spirit.is_turn {
-            self.spirit.state = 1;
-        }
-
-        if self.spirit.x >= -0.2-(self.screen_move_x) && !self.spirit.is_underground {
-            self.screen_move_x -= (deltatime as f32)*0.001; 
-        }
-
-        if self.spirit.is_dead {
-            self.spirit.state = self.spirit.textures.len()-1;
-            self.over();
-        }
-
-
-        unsafe {
-            let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
-            let move_vel = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
-            gl::Uniform2f(move_vel, self.spirit.x, self.spirit.y);
-
-            let cname = std::ffi::CString::new("flipTex").expect("CString::new failed");
-            let flip = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
-            gl::Uniform1i(flip, self.spirit.flip as i32);
-        }
-
-        let view = glm::mat4(1.0, 0.0, 0.0, self.screen_move_x,
-                                 0.0, 1.0, 0.0, self.screen_move_y,
-                                 0.0, 0.0, 1.0, 0.0,
-                                 0.0, 0.0, 0.0, 1.0);
-        
-        unsafe {
-            for tile in self.world.tiles.iter() {
-                let cname = std::ffi::CString::new("view").expect("CString::new failed");
-                let view_loc = gl::GetUniformLocation(tile.bg.background_prog.program, cname.as_ptr());
-                tile.bg.background_prog.set_active();
-                gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
-                
-                let cname = std::ffi::CString::new("view").expect("CString::new failed");
-                let view_loc = gl::GetUniformLocation(tile.floor[0].program.program, cname.as_ptr());
-                tile.floor[0].program.set_active();
-                gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
-
-                for goomba in self.goombas.iter() {
-                    let cname = std::ffi::CString::new("view").expect("CString::new failed");
-                    let view_loc = gl::GetUniformLocation(goomba.program.program, cname.as_ptr());
-                    goomba.program.set_active();
-                    gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
-
-                    let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
-                    let move_vel = gl::GetUniformLocation(goomba.program.program, cname.as_ptr());
-                    goomba.program.set_active();
-                    gl::Uniform2f(move_vel, goomba.obj.x, goomba.obj.y);
-                }
-
-                for troopa in self.troopas.iter() {
-                    let cname = std::ffi::CString::new("view").expect("CString::new failed");
-                    let view_loc = gl::GetUniformLocation(troopa.program.program, cname.as_ptr());
-                    troopa.program.set_active();
-                    gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
-
-                    let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
-                    let move_vel = gl::GetUniformLocation(troopa.program.program, cname.as_ptr());
-                    troopa.program.set_active();
-                    gl::Uniform2f(move_vel, troopa.obj.x, troopa.obj.y);
-                }
+    
+            if self.spirit.is_crouch && !self.spirit.is_crouch_spirit && self.spirit.level_up == 1 {
+                let x = self.spirit.x;
+                let y = self.spirit.y;
+                self.spirit = Spirit::create(0.0, 0.0, 24.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario_large_crouch.png"));
+                self.spirit.state = 0;
+                self.spirit.x = x;
+                self.spirit.y = y-8.0/240.0;
+                self.spirit.is_crouch_spirit = true;
+                self.spirit.is_crouch = true;
             }
 
-            for obj in self.objects_still.iter() {
-                let cname = std::ffi::CString::new("view").expect("CString::new failed");
-                let view_loc = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
-                obj.program.set_active();
-                gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+            if !self.spirit.is_crouch && self.spirit.is_crouch_spirit {
+                let x = self.spirit.x;
+                let y = self.spirit.y;
+                self.spirit = Spirit::create(0.0, 0.0, 32.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
+                self.spirit.state = 0;
+                self.spirit.x = x;
+                self.spirit.y = y;
+                self.spirit.is_crouch_spirit = false;
+                self.spirit.level_up = 1;
+            }
 
+            if self.spirit.x >= -0.2-(self.screen_move_x) && !self.spirit.is_underground {
+                self.screen_move_x -= (deltatime as f32)*0.001; 
+            }
+    
+            if self.spirit.is_dead {
+                self.spirit.state = self.spirit.textures.len()-1;
+                self.over();
+            }
+
+    
+            unsafe {
                 let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
-                let move_vel = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
-                obj.program.set_active();
-                gl::Uniform2f(move_vel, obj.x, obj.y);
+                let move_vel = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
+                self.spirit.program.set_active();
+                gl::Uniform2f(move_vel, self.spirit.x, self.spirit.y);
+    
+                let cname = std::ffi::CString::new("flipTex").expect("CString::new failed");
+                let flip = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
+                self.spirit.program.set_active();
+                gl::Uniform1i(flip, self.spirit.flip as i32);
             }
-
-            for obj in self.objects_inmove.iter() {
+    
+            let view = glm::mat4(1.0, 0.0, 0.0, self.screen_move_x,
+                                     0.0, 1.0, 0.0, self.screen_move_y,
+                                     0.0, 0.0, 1.0, 0.0,
+                                     0.0, 0.0, 0.0, 1.0);
+            
+            unsafe {
+                for tile in self.world.tiles.iter() {
+                    let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                    let view_loc = gl::GetUniformLocation(tile.bg.background_prog.program, cname.as_ptr());
+                    tile.bg.background_prog.set_active();
+                    gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+                    
+                    let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                    let view_loc = gl::GetUniformLocation(tile.floor[0].program.program, cname.as_ptr());
+                    tile.floor[0].program.set_active();
+                    gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+    
+                    for goomba in self.goombas.iter() {
+                        let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                        let view_loc = gl::GetUniformLocation(goomba.program.program, cname.as_ptr());
+                        goomba.program.set_active();
+                        gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+    
+                        let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                        let move_vel = gl::GetUniformLocation(goomba.program.program, cname.as_ptr());
+                        goomba.program.set_active();
+                        gl::Uniform2f(move_vel, goomba.obj.x, goomba.obj.y);
+                    }
+    
+                    for troopa in self.troopas.iter() {
+                        let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                        let view_loc = gl::GetUniformLocation(troopa.program.program, cname.as_ptr());
+                        troopa.program.set_active();
+                        gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+    
+                        let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                        let move_vel = gl::GetUniformLocation(troopa.program.program, cname.as_ptr());
+                        troopa.program.set_active();
+                        gl::Uniform2f(move_vel, troopa.obj.x, troopa.obj.y);
+                    }
+                }
+    
+                for obj in self.objects_still.iter() {
+                    let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                    let view_loc = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                    obj.program.set_active();
+                    gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+    
+                    let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                    let move_vel = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                    obj.program.set_active();
+                    gl::Uniform2f(move_vel, obj.x, obj.y);
+                }
+    
+                for obj in self.objects_inmove.iter() {
+                    let cname = std::ffi::CString::new("view").expect("CString::new failed");
+                    let view_loc = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                    obj.program.set_active();
+                    gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+    
+                    let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+                    let move_vel = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
+                    obj.program.set_active();
+                    gl::Uniform2f(move_vel, obj.x, obj.y);
+                }
+    
                 let cname = std::ffi::CString::new("view").expect("CString::new failed");
-                let view_loc = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
-                obj.program.set_active();
+                let view_loc = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
+                self.spirit.program.set_active();
                 gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
-
-                let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
-                let move_vel = gl::GetUniformLocation(obj.program.program, cname.as_ptr());
-                obj.program.set_active();
-                gl::Uniform2f(move_vel, obj.x, obj.y);
             }
-
-            let cname = std::ffi::CString::new("view").expect("CString::new failed");
-            let view_loc = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
-            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
         }
-
     }
 
     pub unsafe fn draw(&mut self) {

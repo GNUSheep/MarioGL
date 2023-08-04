@@ -40,7 +40,7 @@ fn main() {
                         Keycode::D => right = true,
                         Keycode::A => left = true,
                         Keycode::W => up = true,
-                        Keycode::S => down = true,
+                        Keycode::S => game.spirit.is_crouch = true,
                         _ => {},
                     }
                 },
@@ -49,19 +49,18 @@ fn main() {
                         Keycode::D => right = false,
                         Keycode::A => left = false,
                         Keycode::W => up = false,
-                        Keycode::S => down = false,
+                        Keycode::S => game.spirit.is_crouch = false,
                         _ => {},
                     }
                 },
                 _ => {},
             }
         }
-        //if !game.spirit.is_dead {
+        if !game.spirit.is_crouch {
             if left {game.move_x("left")};
             if right {game.move_x("right")};
             if up {game.jump()};
-            if down {game.crouch()};
-        //}
+        }
 
         unsafe{game.draw()};
         window.gl_swap_window();
