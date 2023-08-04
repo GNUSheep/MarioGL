@@ -139,8 +139,8 @@ impl Texture {
 
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as gl::types::GLint);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE  as gl::types::GLint);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as gl::types::GLint);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as gl::types::GLint);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as gl::types::GLint);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as gl::types::GLint);
         
             
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
@@ -161,35 +161,6 @@ pub struct Object {
 }
 
 impl Object {
-    //pub fn create_triangles_with_points(points: Vec<f32>) -> Self {
-    //    let mut vao: gl::types::GLuint = 0;
-    //    unsafe {
-    //        gl::GenVertexArrays(1, &mut vao);
-    //    }
-    //    unsafe {
-    //        gl::BindVertexArray(vao);
-    //    }
-    //    
-    //    let mut vbo: gl::types::GLuint = 0;
-    //    unsafe {
-    //        gl::GenBuffers(1, &mut vbo);
-    //    }
-    //    unsafe {
-    //        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-    //        gl::BufferData (
-    //            gl::ARRAY_BUFFER,
-    //            (points.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
-    //            points.as_ptr() as *const gl::types::GLvoid,
-    //            gl::STATIC_DRAW,
-    //        );
-    //    }
-    //    unsafe {
-    //        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-    //        gl::BindVertexArray(0);
-    //    }
-    //    Self{vao, vbo}
-    //}
-
     pub fn create_square_with_points(points: Vec<f32>, indices: [i32; 6]) -> Self {
         let mut vao: gl::types::GLuint = 0;
         unsafe {

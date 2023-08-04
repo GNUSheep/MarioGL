@@ -441,14 +441,6 @@ impl World {
             false,
             "src/scenes/game/assets/images/brick.png",
         );
-        tile8.objects.create_block(
-            -1.0+(16.0/256.0)*(237 as f32), 
-            -1.0+(16.0/240.0)*(11 as f32),
-            16.0/240.0, 
-            16.0/256.0,
-            false,
-            "src/scenes/game/assets/images/brick.png",
-        );
         for i in (0..=2*2).step_by(2) {
             tile8.objects.create_block(
                 -1.0+(16.0/256.0)*((243+i) as f32), 

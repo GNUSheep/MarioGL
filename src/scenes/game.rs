@@ -403,6 +403,75 @@ impl Game {
         let world_level = 1;
         let time = 400;
 
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*45 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*81 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*103 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*107 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*161 as f32), 
+            -1.0+((16.0/240.0)*21 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*165 as f32), 
+            -1.0+((16.0/240.0)*21 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*195 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*199 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        troopas.push(objects::Troopa::create(
+            -1.0+((16.0/256.0)*215 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*229 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*233 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*249 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*253 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*257 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*261 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*349 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+        goombas.push(objects::Goomba::create(
+            -1.0+((16.0/256.0)*351 as f32), 
+            -1.0+((16.0/240.0)*5 as f32),
+        ));
+
         let mut hud = render::Texts::init();
         let mut hud_coin_icon = Block::create(-1.0+(8.0/256.0)*23.0, 1.0-(8.0/240.0)*7.0, 8.0/240.0, 8.0/256.0, false, &Path::new("src/scenes/game/assets/images/coin_icon1.png"), "coin_icon");
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon2.png")));
@@ -853,6 +922,26 @@ impl Game {
                     }else if goomba.obj.check_hitbox(block) == "right" {
                         goomba.obj.x = block.x-block.w-goomba.obj.w-0.01;
                     }
+                    
+                    if self.spirit.check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
+                        goomba.squash();
+                        goomba.delay = 0;
+                    }
+                }
+
+                for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
+                    if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
+                        goomba.obj.y = question_mark_block.y+question_mark_block.h+goomba.obj.h;
+                        if goomba.obj.move_acc_y < 0 as f32 {
+                            goomba.obj.move_acc_y = 0.0;
+                        }
+                        obj_falling = false;
+                    }
+
+                    if self.spirit.check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
+                        goomba.squash();
+                        goomba.delay = 0;
+                    }
                 }
             }
 
@@ -883,7 +972,7 @@ impl Game {
             }
             goomba.obj.y += (deltatime as f32)*0.001*goomba.obj.move_acc_y; 
 
-            if self.spirit.x+0.5 >= goomba.obj.x {
+            if self.spirit.x+1.5 >= goomba.obj.x {
                 goomba.to_move = true;
             }
             if goomba.to_move && !goomba.is_squash {
