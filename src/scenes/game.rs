@@ -1,6 +1,8 @@
 extern crate sdl2;
 
 use glm;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 mod worlds;
 mod background;
@@ -10,11 +12,14 @@ use crate::render;
 use std::path::Path;
 use std::ffi::{CString, c_void};
 
+use self::objects::Collisioner;
+
 pub struct Spirit {
     x: f32,
     y: f32,
     h: f32,
     w: f32,
+    object_type: String,
     state: usize,
     is_falling: bool,
     pub is_dead: bool,
@@ -23,7 +28,7 @@ pub struct Spirit {
     is_crouch: bool,
     is_underground: bool,
     delay: i32,
-    move_vel_x: i32,
+    move_acc_x: i32,
     move_acc_y: f32,
     obj: render::Object,
     textures: Vec<render::Texture>,
@@ -48,9 +53,7 @@ impl Spirit {
         let obj = render::Object::create_square_with_points(points, INDCIES);
 
         let mut textures: Vec<render::Texture> = vec![];
-
-        let texture0 = render::Texture::create_new_texture_from_file(path);
-        textures.push(texture0);
+        textures.push(render::Texture::create_new_texture_from_file(path));
         let texture1 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_move1.png"));
         textures.push(texture1);
         let texture2 = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_move2.png"));
@@ -64,22 +67,8 @@ impl Spirit {
         let texture_jump = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_jump.png"));
         textures.push(texture_jump);
 
-        unsafe {
-            obj.set_vertex_attrib_pointer(0, 
-                3, 
-                gl::FLOAT, 
-                gl::FALSE, 
-                (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                std::ptr::null()
-            );
-            
-            obj.set_vertex_attrib_pointer(1, 
-                2, 
-                gl::FLOAT, 
-                gl::FALSE, 
-                (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                (3 * std::mem::size_of::<f32>()) as *const c_void, 
-            );
+        unsafe {        
+            obj.set_vertex_attrib_pointers()
         }
         
         let vert_shader = render::Shader::vertex_from_src(
@@ -89,10 +78,8 @@ impl Spirit {
         let frag_shader = render::Shader::fragment_from_src(
             &CString::new(include_str!("game/assets/shaders/spirit.frag")).unwrap(),
         ).unwrap();
-
         let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
 
-        let move_vel_x = 0;
         let state = 0;
         let is_falling = true;
         let is_dead = false;
@@ -101,10 +88,11 @@ impl Spirit {
         let is_crouch = false;
         let is_underground = false;
         let delay = 0;
+        let move_acc_x = 0;
         let move_acc_y = 0.0;
         let flip = false;
-         
-        Self{x, y, h, w, state, is_falling, is_dead, is_moving, is_turn, is_crouch, is_underground, delay, move_vel_x, move_acc_y, obj, textures, flip, program}
+
+        Self{x, y, h, w, object_type: "spirit".to_string(), state, is_falling, is_dead, is_moving, is_turn, is_crouch, is_underground, delay, move_acc_x, move_acc_y, obj, textures, flip, program}
     }
 
     pub fn check_hitbox(&self, obj: &Block) -> &str {
@@ -161,11 +149,86 @@ impl Spirit {
     }
 }
 
+impl objects::Collisioner for Spirit {
+    fn get_collision_rect(&self) -> objects::Collision_rect {
+        objects::Collision_rect{
+            x: self.x, 
+            y: self.y, 
+            w: self.w, 
+            h: self.h,
+        }
+    }
+    fn get_type(&self) -> &String {
+        &self.object_type
+    }
+    fn handle_collision(&mut self, collision_object: &String, collision_rect: objects::Collision_rect, collisions: Vec<char>) {
+        for collision in collisions.iter() {
+            if collision_object == "block" {
+                if collision == &'b' {
+                    self.y = collision_rect.y+collision_rect.h+self.h-0.01;
+                    if self.move_acc_y < 0 as f32 {
+                        self.move_acc_y = 0.0;
+                    }
+                    self.is_falling = false;
+                }
+            }
+        }
+    }
+    fn set_default_behavior(&mut self) {
+        self.is_falling = true;
+    }
+    fn run_default_behavior(&mut self, deltatime: u32) {
+        if self.is_falling {
+            self.move_acc_y -= 0.10;
+        }
+        self.y += (deltatime as f32)*0.001*self.move_acc_y;
+    }
+}
+
+impl objects::Drawer for Spirit {
+    unsafe fn get_program(&self) -> &render::Program {
+        &self.program
+    }
+
+    unsafe fn set_uniforms(&self, view_x: f32, view_y: f32) {
+        let view = glm::mat4(1.0, 0.0, 0.0, view_x,
+            0.0, 1.0, 0.0, view_y,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0);
+        let cname = std::ffi::CString::new("view").expect("CString::new failed");
+        let view_loc = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+        let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+        let move_vel = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::Uniform2f(move_vel, self.x, self.y);
+
+        let cname = std::ffi::CString::new("flipTex").expect("CString::new failed");
+        let flip = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::Uniform1i(flip, self.flip as i32);
+    }
+
+    unsafe fn draw(&self) {
+        self.program.set_active();
+        if self.is_falling && !self.is_dead {
+            gl::BindTexture(gl::TEXTURE_2D, self.textures[5].texture);
+        }else {
+            gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
+        }
+        gl::BindVertexArray(self.obj.vao);
+        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+    }
+}
+
 pub struct Block {
     pub x: f32,
     pub y: f32,
     h: f32,
     w: f32,
+    object_type: String,
     move_acc_y: f32,
     move_acc_x: f32,
     collision_event: bool,
@@ -207,21 +270,7 @@ impl Block {
         let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
 
         unsafe {
-            obj.set_vertex_attrib_pointer(0, 
-                3, 
-                gl::FLOAT, 
-                gl::FALSE, 
-                (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                std::ptr::null()
-            );
-            
-            obj.set_vertex_attrib_pointer(1, 
-                2, 
-                gl::FLOAT, 
-                gl::FALSE, 
-                (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                (3 * std::mem::size_of::<f32>()) as *const c_void, 
-            );
+            obj.set_vertex_attrib_pointers();
         }
         
         let collision_name = collision_name.to_string();
@@ -233,7 +282,7 @@ impl Block {
         let move_acc_y = 0.0;
         let move_acc_x = 0.0;
 
-        Self{x, y, w, h, move_acc_y, move_acc_x, collision_event, collision_name, collision_num, state, obj, textures, program} 
+        Self{x, y, w, h, object_type: "block".to_string(), move_acc_y, move_acc_x, collision_event, collision_name, collision_num, state, obj, textures, program} 
     }
 
     pub fn check_hitbox(&self, obj: &Block) -> &str {
@@ -362,9 +411,55 @@ impl Block {
     }
 }
 
+impl objects::Collisioner for Block {
+    fn get_collision_rect(&self) -> objects::Collision_rect {
+        objects::Collision_rect{
+            x: self.x, 
+            y: self.y, 
+            w: self.w, 
+            h: self.h,
+        }
+    }
+    fn get_type(&self) -> &String {
+        &self.object_type
+    }
+    fn handle_collision(&mut self, collision_object: &String, collision_rect: objects::Collision_rect, collisions: Vec<char>){}
+    fn set_default_behavior(&mut self){}
+    fn run_default_behavior(&mut self, deltatime: u32){}
+}
+
+impl objects::Drawer for Block {
+    unsafe fn get_program(&self) -> &render::Program {
+        &self.program
+    }
+
+    unsafe fn set_uniforms(&self, view_x: f32, view_y: f32) {
+        let view = glm::mat4(1.0, 0.0, 0.0, view_x,
+            0.0, 1.0, 0.0, view_y,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0);
+        let cname = std::ffi::CString::new("view").expect("CString::new failed");
+        let view_loc = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+        let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+        let move_vel = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::Uniform2f(move_vel, self.x, self.y);
+    }
+
+    unsafe fn draw(&self) {
+        self.program.set_active();
+        gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
+        gl::BindVertexArray(self.obj.vao);
+        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+    }
+}
+
 pub struct Game {
     world: worlds::World,
-    pub spirit: Spirit,
+    pub spirit: Rc<RefCell<Spirit>>,
     objects_still: Vec<Block>,
     objects_inmove: Vec<Block>,
     goombas: Vec<objects::Goomba>,
@@ -381,11 +476,16 @@ pub struct Game {
     world_number: u32,
     world_level: u32,
     pub time: u32,
+    pub collisions_objects: Vec<Rc<RefCell<dyn objects::Collisioner>>>,
+    pub objects_draw: Vec<Rc<RefCell<dyn objects::Drawer>>>,
 }
 
 impl Game {    
-    pub fn init() -> Self {      
-        let world = worlds::World::init();
+    pub fn init() -> Self {
+        let mut collisions_objects: Vec<Rc<RefCell<dyn objects::Collisioner>>> = vec![];
+        let mut objects_draw: Vec<Rc<RefCell<dyn objects::Drawer>>> = vec![];
+
+        let world = worlds::World::init(&mut collisions_objects, &mut objects_draw);
         
         let screen_move_x = 0.0;
         let screen_move_y = 0.0;
@@ -403,109 +503,117 @@ impl Game {
         let world_level = 1;
         let time = 400;
 
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*45 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*81 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*103 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*107 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*161 as f32), 
-            -1.0+((16.0/240.0)*21 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*165 as f32), 
-            -1.0+((16.0/240.0)*21 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*195 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*199 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        troopas.push(objects::Troopa::create(
-            -1.0+((16.0/256.0)*215 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*229 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*233 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*249 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*253 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*257 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*261 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*349 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-        goombas.push(objects::Goomba::create(
-            -1.0+((16.0/256.0)*351 as f32), 
-            -1.0+((16.0/240.0)*5 as f32),
-        ));
-
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*45 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*81 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*103 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*107 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*161 as f32), 
+        //    -1.0+((16.0/240.0)*21 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*165 as f32), 
+        //    -1.0+((16.0/240.0)*21 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*195 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*199 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //troopas.push(objects::Troopa::create(
+        //    -1.0+((16.0/256.0)*215 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*229 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*233 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*249 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*253 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*257 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*261 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*349 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+        //goombas.push(objects::Goomba::create(
+        //    -1.0+((16.0/256.0)*351 as f32), 
+        //    -1.0+((16.0/240.0)*5 as f32),
+        //));
+//
         let mut hud = render::Texts::init();
         let mut hud_coin_icon = Block::create(-1.0+(8.0/256.0)*23.0, 1.0-(8.0/240.0)*7.0, 8.0/240.0, 8.0/256.0, false, &Path::new("src/scenes/game/assets/images/coin_icon1.png"), "coin_icon");
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon2.png")));
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon3.png")));
 
-        let mut spirit = Spirit::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
-        spirit.x = -0.3;
-        spirit.y = -1.0+((16.0/240.0)*5 as f32);
-        Self{world, spirit, objects_still, objects_inmove, goombas, troopas, delay, screen_move_x, screen_move_y, is_over, is_endlvl, hud, hud_coin_icon, score, coins, world_number, world_level, time}
+        let mut spirit_obj = Spirit::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
+        spirit_obj.x = -0.3;
+        spirit_obj.y = -1.0+((16.0/240.0)*7 as f32);
+
+        let spirit: Rc<RefCell<Spirit>> = Rc::new(RefCell::new(spirit_obj));
+
+        let spirit_drawer: Rc<RefCell<dyn objects::Drawer>> = spirit.clone();
+        objects_draw.push(spirit_drawer);
+
+        let spirit_collisioner: Rc<RefCell<dyn objects::Collisioner>> = spirit.clone();
+        collisions_objects.push(spirit_collisioner);
+        Self{world, spirit, objects_still, objects_inmove, goombas, troopas, delay, screen_move_x, screen_move_y, is_over, is_endlvl, hud, hud_coin_icon, score, coins, world_number, world_level, time, collisions_objects, objects_draw}
     }
 
     pub fn jump(&mut self) {
-        self.spirit.is_falling = true;
-        if self.spirit.move_acc_y == 0.0 {
-            self.spirit.move_acc_y = 3.0;
+        self.spirit.borrow_mut().is_falling = true;
+        if self.spirit.borrow_mut().move_acc_y == 0.0 {
+            self.spirit.borrow_mut().move_acc_y = 3.0;
         }
     }
 
     pub fn crouch(&mut self) {
-        self.spirit.is_crouch = true;
+        self.spirit.borrow_mut().is_crouch = true;
     }
 
     pub fn go_into_pipe(&mut self, exit: bool) {
         if exit {
-            self.spirit.y = -1.0+(16.0/240.0)*(9 as f32);
-            self.spirit.x = -1.0+(16.0/256.0)*(328 as f32); 
-            self.spirit.is_underground = false;
+            self.spirit.borrow_mut().y = -1.0+(16.0/240.0)*(9 as f32);
+            self.spirit.borrow_mut().x = -1.0+(16.0/256.0)*(328 as f32); 
+            self.spirit.borrow_mut().is_underground = false;
             self.screen_move_y = 0.0;
             self.screen_move_x = -2.0*10.0;
             self.world.bg_color = "blue".to_string(); 
         }else {
-            self.spirit.y = -2.0;
-            self.spirit.x = -1.0+(16.0/256.0)*5 as f32;
-            self.spirit.is_underground = true;
+            self.spirit.borrow_mut().y = -2.0;
+            self.spirit.borrow_mut().x = -1.0+(16.0/256.0)*5 as f32;
+            self.spirit.borrow_mut().is_underground = true;
             self.screen_move_y = 2.07;
             self.screen_move_x = 0.0;
             self.world.bg_color = "black".to_string(); 
@@ -513,19 +621,19 @@ impl Game {
     }
 
     pub fn endLevel(&mut self, deltatime: u32) {
-        self.spirit.is_falling = false;
-        if self.spirit.y >= -1.0+(16.0/240.0)*(7 as f32) {
-            self.spirit.y -= (deltatime as f32)*0.0008;
+        self.spirit.borrow_mut().is_falling = false;
+        if self.spirit.borrow_mut().y >= -1.0+(16.0/240.0)*(7 as f32) {
+            self.spirit.borrow_mut().y -= (deltatime as f32)*0.0008;
         }else{
-            self.spirit.y = -1.0+(16.0/240.0)*(5 as f32);
-            if self.spirit.x <= -1.0+(16.0/256.0)*(409 as f32) {
-                self.spirit.x += (deltatime as f32)*0.001;
-                self.spirit.delay += 1;
-                if self.spirit.delay == 5 {
-                    self.spirit.delay = 0;
-                    self.spirit.state += 1;
-                    if self.spirit.state == 4 {
-                        self.spirit.state = 0;
+            self.spirit.borrow_mut().y = -1.0+(16.0/240.0)*(5 as f32);
+            if self.spirit.borrow_mut().x <= -1.0+(16.0/256.0)*(409 as f32) {
+                self.spirit.borrow_mut().x += (deltatime as f32)*0.001;
+                self.spirit.borrow_mut().delay += 1;
+                if self.spirit.borrow_mut().delay == 5 {
+                    self.spirit.borrow_mut().delay = 0;
+                    self.spirit.borrow_mut().state += 1;
+                    if self.spirit.borrow_mut().state == 4 {
+                        self.spirit.borrow_mut().state = 0;
                     }
                 }
                 self.screen_move_x -= (deltatime as f32)*0.001; 
@@ -536,9 +644,9 @@ impl Game {
 
         unsafe {
             let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
-            let move_vel = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
-            gl::Uniform2f(move_vel, self.spirit.x, self.spirit.y);
+            let move_vel = gl::GetUniformLocation(self.spirit.borrow_mut().program.program, cname.as_ptr());
+            self.spirit.borrow_mut().program.set_active();
+            gl::Uniform2f(move_vel, self.spirit.borrow_mut().x, self.spirit.borrow_mut().y);
 
             let view = glm::mat4(1.0, 0.0, 0.0, self.screen_move_x,
                 0.0, 1.0, 0.0, 0.0,
@@ -550,33 +658,28 @@ impl Game {
             let view_loc = gl::GetUniformLocation(tile.bg.background_prog.program, cname.as_ptr());
             tile.bg.background_prog.set_active();
             gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
-
-            let cname = std::ffi::CString::new("view").expect("CString::new failed");
-            let view_loc = gl::GetUniformLocation(tile.floor[0].program.program, cname.as_ptr());
-            tile.floor[0].program.set_active();
-            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
             }
 
             let cname = std::ffi::CString::new("view").expect("CString::new failed");
-            let view_loc = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
+            let view_loc = gl::GetUniformLocation(self.spirit.borrow_mut().program.program, cname.as_ptr());
+            self.spirit.borrow_mut().program.set_active();
             gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
         }
     }
 
     pub fn move_x(&mut self, dir: &str) {
         if dir == "left" {
-            self.spirit.move_vel_x = 1;
+            self.spirit.borrow_mut().move_acc_x = 1;
         }else{
-            self.spirit.move_vel_x = -1;
+            self.spirit.borrow_mut().move_acc_x = -1;
         }
     }
 
     fn dead(&mut self) {
         let texture_dead = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/mario_dead.png"));
-        self.spirit.textures.push(texture_dead);
-        self.spirit.move_acc_y = 5.0;
-        self.spirit.is_dead = true;
+        self.spirit.borrow_mut().textures.push(texture_dead);
+        self.spirit.borrow_mut().move_acc_y = 5.0;
+        self.spirit.borrow_mut().is_dead = true;
     }
 
     fn over(&mut self) {
@@ -589,86 +692,84 @@ impl Game {
 
     pub fn handle(&mut self, deltatime: u32) {
         // floor collision system
-        self.spirit.is_falling = true;
+        for obj_first in &self.collisions_objects {
+            obj_first.try_borrow_mut().unwrap().set_default_behavior();
+        }
+
+        for obj_sec in &self.collisions_objects {
+            let collisions: Vec<char>;
+            let obj_sec_ref = obj_sec.borrow();
+            if self.spirit.try_borrow_mut().is_ok() == false {
+                continue;
+            }
+            collisions = self.spirit.borrow_mut().get_collision_rect().check_hitbox(obj_sec_ref.get_collision_rect());
+            self.spirit.borrow_mut().handle_collision(obj_sec_ref.get_type(), obj_sec_ref.get_collision_rect(), collisions);
+        }
+
+        for obj_first in &self.collisions_objects {
+            obj_first.try_borrow_mut().unwrap().run_default_behavior(deltatime);
+        }
 
         let mut go_into_pipe = false;
         for tile in self.world.tiles.iter_mut() {
-            for brick in tile.floor.iter() {
-                if self.spirit.check_hitbox(brick) == "bottom" {
-                    self.spirit.y = brick.y+brick.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
-                    }
-                    self.spirit.is_falling = false;
-                }
-                else if self.spirit.check_hitbox(brick) == "top" {
-                    self.spirit.y = brick.y-brick.h-self.spirit.w;
-                }
-                else if self.spirit.check_hitbox(brick) == "left" {
-                    self.spirit.x = brick.x+brick.w+self.spirit.w+0.01;
-                }
-                else if self.spirit.check_hitbox(brick) == "right" {
-                    self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
-                }
-            }
-
+            let mut sprt = self.spirit.borrow_mut();
             for stone in tile.objects.stones.iter() {
-                if self.spirit.check_hitbox(stone) == "bottom" {
-                    self.spirit.y = stone.y+stone.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+                if sprt.check_hitbox(stone) == "bottom" {
+                    sprt.y = stone.y+stone.h+sprt.h;
+                    if sprt.move_acc_y < 0 as f32 {
+                        sprt.move_acc_y = 0.0;
                     }
-                    self.spirit.is_falling = false;
-                }else if self.spirit.check_hitbox(stone) == "top" {
-                    self.spirit.y = stone.y-stone.h-self.spirit.w;
-                }else if self.spirit.check_hitbox(stone) == "left" {
-                    self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
-                }else if self.spirit.check_hitbox(stone) == "right" {
-                    self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
+                    sprt.is_falling = false;
+                }else if sprt.check_hitbox(stone) == "top" {
+                    sprt.y = stone.y-stone.h-sprt.w;
+                }else if sprt.check_hitbox(stone) == "left" {
+                    sprt.x = stone.x+stone.w+sprt.w+0.01;
+                }else if sprt.check_hitbox(stone) == "right" {
+                    sprt.x = stone.x-stone.w-sprt.w-0.01;
                 }
             }
 
             for block in tile.objects.blocks.iter_mut() {
-                if self.spirit.check_hitbox(block) == "bottom" {
-                    self.spirit.y = block.y+block.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+                if sprt.check_hitbox(block) == "bottom" {
+                    sprt.y = block.y+block.h+sprt.h;
+                    if sprt.move_acc_y < 0 as f32 {
+                        sprt.move_acc_y = 0.0;
                     }
-                    self.spirit.is_falling = false;
-                }else if self.spirit.check_hitbox(block) == "top" {
-                    self.spirit.y = block.y-block.h-self.spirit.w;
+                    sprt.is_falling = false;
+                }else if sprt.check_hitbox(block) == "top" {
+                    sprt.y = block.y-block.h-sprt.w;
 
                     if block.collision_name == "star" {
                         block.handle(&mut self.objects_inmove);
                     }else {
                         block.handle(&mut self.objects_still);
                     }
-                    self.spirit.move_acc_y = -1.0
-                }else if self.spirit.check_hitbox(block) == "left" {
-                    self.spirit.x = block.x+block.w+self.spirit.w+0.01;
-                }else if self.spirit.check_hitbox(block) == "right" {
-                    self.spirit.x = block.x-block.w-self.spirit.w-0.01;
+                    sprt.move_acc_y = -1.0
+                }else if sprt.check_hitbox(block) == "left" {
+                    sprt.x = block.x+block.w+sprt.w+0.01;
+                }else if sprt.check_hitbox(block) == "right" {
+                    sprt.x = block.x-block.w-sprt.w-0.01;
                 }
             }
 
             for pipe in tile.objects.pipes.iter() {
                 for obj in pipe.objects.iter() {
-                    if self.spirit.check_hitbox_pipe(obj) == "bottom" {
-                        self.spirit.y = obj.y+obj.h+self.spirit.h;
-                        if self.spirit.move_acc_y < 0 as f32 {
-                            self.spirit.move_acc_y = 0.0;
+                    if sprt.check_hitbox_pipe(obj) == "bottom" {
+                        sprt.y = obj.y+obj.h+sprt.h;
+                        if sprt.move_acc_y < 0 as f32 {
+                            sprt.move_acc_y = 0.0;
                         }
-                        self.spirit.is_falling = false;
+                        sprt.is_falling = false;
 
-                        if self.spirit.is_crouch && pipe.is_collision {
+                        if sprt.is_crouch && pipe.is_collision {
                             go_into_pipe = true;
                         }
-                    }else if self.spirit.check_hitbox_pipe(obj) == "top" {
-                        self.spirit.y = obj.y-obj.h-self.spirit.w;
-                    }else if self.spirit.check_hitbox_pipe(obj) == "left" {
-                        self.spirit.x = obj.x+obj.w+self.spirit.w+0.01;
-                    }else if self.spirit.check_hitbox_pipe(obj) == "right" {
-                        self.spirit.x = obj.x-obj.w-self.spirit.w-0.01;
+                    }else if sprt.check_hitbox_pipe(obj) == "top" {
+                        sprt.y = obj.y-obj.h-sprt.w;
+                    }else if sprt.check_hitbox_pipe(obj) == "left" {
+                        sprt.x = obj.x+obj.w+sprt.w+0.01;
+                    }else if sprt.check_hitbox_pipe(obj) == "right" {
+                        sprt.x = obj.x-obj.w-sprt.w-0.01;
                     }
                 }
             }
@@ -685,127 +786,109 @@ impl Game {
                     }
                 }
 
-                if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
-                    self.spirit.y = question_mark_block.y+question_mark_block.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+                if sprt.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
+                    sprt.y = question_mark_block.y+question_mark_block.h+sprt.h;
+                    if sprt.move_acc_y < 0 as f32 {
+                        sprt.move_acc_y = 0.0;
                     }
-                    self.spirit.is_falling = false;
-                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "top" {
-                    self.spirit.y = question_mark_block.y-question_mark_block.h-self.spirit.w;
+                    sprt.is_falling = false;
+                }else if sprt.check_hitbox_question_mark_block(question_mark_block) == "top" {
+                    sprt.y = question_mark_block.y-question_mark_block.h-sprt.w;
                     if question_mark_block.collision_name == "mushroom" {
                         question_mark_block.handler(&mut self.objects_inmove);
                     }else {
                         question_mark_block.handler(&mut self.objects_still);
                     }
 
-                    self.spirit.move_acc_y = -1.0
-                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "left" {
-                    self.spirit.x = question_mark_block.x+question_mark_block.w+self.spirit.w+0.01;
-                }else if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "right" {
-                    self.spirit.x = question_mark_block.x-question_mark_block.w-self.spirit.w-0.01;
+                    sprt.move_acc_y = -1.0
+                }else if sprt.check_hitbox_question_mark_block(question_mark_block) == "left" {
+                    sprt.x = question_mark_block.x+question_mark_block.w+sprt.w+0.01;
+                }else if sprt.check_hitbox_question_mark_block(question_mark_block) == "right" {
+                    sprt.x = question_mark_block.x-question_mark_block.w-sprt.w-0.01;
                 }
             }
 
             for flag in tile.objects.flag.iter() {
                 for obj in flag.objects.iter() {
-                    if  self.spirit.check_hitbox_pipe(obj) == "bottom" || 
-                    self.spirit.check_hitbox_pipe(obj) == "top" ||
-                    self.spirit.check_hitbox_pipe(obj) == "left" ||
-                    self.spirit.check_hitbox_pipe(obj) == "right"  
+                    if  sprt.check_hitbox_pipe(obj) == "bottom" || 
+                    sprt.check_hitbox_pipe(obj) == "top" ||
+                    sprt.check_hitbox_pipe(obj) == "left" ||
+                    sprt.check_hitbox_pipe(obj) == "right"  
                     { 
                         self.is_endlvl = true;
-                        self.spirit.delay = 0;
+                        sprt.delay = 0;
                     }
                 }
             }
         }
         
         if go_into_pipe {
-            self.spirit.is_crouch = false;
+            self.spirit.borrow_mut().is_crouch = false;
             self.go_into_pipe(false);
         }
         go_into_pipe = false;
-        self.spirit.is_crouch = false;
+        self.spirit.borrow_mut().is_crouch = false;
 
         let mut indexes_to_remove: Vec<usize> = vec![];
         let mut index = 0;
         for tile in self.world.tiles_underground.iter() {
-            for brick in tile.floor.iter() {
-                if self.spirit.check_hitbox(brick) == "bottom" {
-                    self.spirit.y = brick.y+brick.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
-                    }
-                    self.spirit.is_falling = false;
-                }
-                else if self.spirit.check_hitbox(brick) == "top" {
-                    self.spirit.y = brick.y-brick.h-self.spirit.w;
-                }
-                else if self.spirit.check_hitbox(brick) == "left" {
-                    self.spirit.x = brick.x+brick.w+self.spirit.w+0.01;
-                }
-                else if self.spirit.check_hitbox(brick) == "right" {
-                    self.spirit.x = brick.x-brick.w-self.spirit.w-0.01;
-                }
-            }
-
+        let mut sprt = self.spirit.borrow_mut();
             for stone in tile.wall.iter() {
-                if self.spirit.check_hitbox(stone) == "bottom" {
-                    self.spirit.y = stone.y+stone.h+self.spirit.h;
+                if sprt.check_hitbox(stone) == "bottom" {
+                    sprt.y = stone.y+stone.h+sprt.h;
                 }
-                else if self.spirit.check_hitbox(stone) == "left" {
-                    self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
+                else if sprt.check_hitbox(stone) == "left" {
+                    sprt.x = stone.x+stone.w+sprt.w+0.01;
                 }
-                else if self.spirit.check_hitbox(stone) == "right" {
-                    self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
+                else if sprt.check_hitbox(stone) == "right" {
+                    sprt.x = stone.x-stone.w-sprt.w-0.01;
                 }
             }
 
             for stone in tile.objects.blocks.iter() {
-                if self.spirit.check_hitbox(stone) == "bottom" {
-                    self.spirit.y = stone.y+stone.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+                if sprt.check_hitbox(stone) == "bottom" {
+                    sprt.y = stone.y+stone.h+sprt.h;
+                    if sprt.move_acc_y < 0 as f32 {
+                        sprt.move_acc_y = 0.0;
                     }
-                    self.spirit.is_falling = false;
+                    sprt.is_falling = false;
                 }
-                else if self.spirit.check_hitbox(stone) == "top" {
-                    self.spirit.y = stone.y-stone.h-self.spirit.w;
+                else if sprt.check_hitbox(stone) == "top" {
+                    sprt.y = stone.y-stone.h-sprt.w;
                 }
-                else if self.spirit.check_hitbox(stone) == "left" {
-                    self.spirit.x = stone.x+stone.w+self.spirit.w+0.01;
+                else if sprt.check_hitbox(stone) == "left" {
+                    sprt.x = stone.x+stone.w+sprt.w+0.01;
                 }
-                else if self.spirit.check_hitbox(stone) == "right" {
-                    self.spirit.x = stone.x-stone.w-self.spirit.w-0.01;
+                else if sprt.check_hitbox(stone) == "right" {
+                    sprt.x = stone.x-stone.w-sprt.w-0.01;
                 } 
             }
 
             for obj in tile.pipe.objects.iter() {
-                if self.spirit.check_hitbox_pipe(obj) == "bottom" {
-                    self.spirit.y = obj.y+obj.h+self.spirit.h;
-                    if self.spirit.move_acc_y < 0 as f32 {
-                        self.spirit.move_acc_y = 0.0;
+                if sprt.check_hitbox_pipe(obj) == "bottom" {
+                    sprt.y = obj.y+obj.h+sprt.h;
+                    if sprt.move_acc_y < 0 as f32 {
+                        sprt.move_acc_y = 0.0;
                     }
-                    self.spirit.is_falling = false;
-                }else if self.spirit.check_hitbox_pipe(obj) == "top" {
-                    self.spirit.y = obj.y-obj.h-self.spirit.w;
+                    sprt.is_falling = false;
+                }else if sprt.check_hitbox_pipe(obj) == "top" {
+                    sprt.y = obj.y-obj.h-sprt.w;
                 }
-                else if self.spirit.check_hitbox_pipe(obj) == "left" {
-                    self.spirit.x = obj.x+obj.w+self.spirit.w+0.01;
+                else if sprt.check_hitbox_pipe(obj) == "left" {
+                    sprt.x = obj.x+obj.w+sprt.w+0.01;
                 }
-                else if self.spirit.check_hitbox_pipe(obj) == "right" {
-                    self.spirit.x = obj.x-obj.w-self.spirit.w-0.01;
+                else if sprt.check_hitbox_pipe(obj) == "right" {
+                    sprt.x = obj.x-obj.w-sprt.w-0.01;
 
                     go_into_pipe = true;
                 }
             }
             
             for coin in tile.objects.coins.iter() {
-                if  self.spirit.check_hitbox(coin) == "bottom" ||
-                    self.spirit.check_hitbox(coin) == "top" ||
-                    self.spirit.check_hitbox(coin) == "left" ||
-                    self.spirit.check_hitbox(coin) == "right"  
+                if  sprt.check_hitbox(coin) == "bottom" ||
+                    sprt.check_hitbox(coin) == "top" ||
+                    sprt.check_hitbox(coin) == "left" ||
+                    sprt.check_hitbox(coin) == "right"  
                 {   
                     indexes_to_remove.push(index);
                     self.coins += 1;
@@ -825,7 +908,7 @@ impl Game {
         if go_into_pipe {
             self.go_into_pipe(true);
         }
-        self.spirit.is_crouch = false;
+        self.spirit.borrow_mut().is_crouch = false;
         // still objects animations and collision
         let mut index = 0; 
         let mut indexes_to_remove: Vec<usize> = vec![];
@@ -874,15 +957,6 @@ impl Game {
         for goomba in self.goombas.iter_mut() {
             let mut obj_falling = true;
             for tile in self.world.tiles.iter_mut() {
-                for brick in tile.floor.iter() {
-                    if goomba.obj.check_hitbox(brick) == "bottom" {
-                        goomba.obj.y = brick.y+brick.h+goomba.obj.h;
-                        if goomba.obj.move_acc_y < 0 as f32 {
-                            goomba.obj.move_acc_y = 0.0;
-                        }
-                        obj_falling = false;
-                    }
-                }
                 for pipe in tile.objects.pipes.iter() {
                     for pipe_obj in pipe.objects.iter() {
                         if goomba.obj.check_hitbox_pipe(pipe_obj) == "left" {
@@ -923,14 +997,14 @@ impl Game {
                         goomba.obj.x = block.x-block.w-goomba.obj.w-0.01;
                     }
                     
-                    if self.spirit.check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
+                    if self.spirit.borrow_mut().check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
                         goomba.squash();
                         goomba.delay = 0;
                     }
                 }
 
                 for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
-                    if self.spirit.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
+                    if self.spirit.borrow_mut().check_hitbox_question_mark_block(question_mark_block) == "bottom" {
                         goomba.obj.y = question_mark_block.y+question_mark_block.h+goomba.obj.h;
                         if goomba.obj.move_acc_y < 0 as f32 {
                             goomba.obj.move_acc_y = 0.0;
@@ -938,10 +1012,10 @@ impl Game {
                         obj_falling = false;
                     }
 
-                    if self.spirit.check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
-                        goomba.squash();
-                        goomba.delay = 0;
-                    }
+//                    if self.spirit.borrow_mut().check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
+//                        goomba.squash();
+//                        goomba.delay = 0;
+//                    }
                 }
             }
 
@@ -954,25 +1028,25 @@ impl Game {
                 }
             }
 
-            if self.spirit.check_hitbox(&goomba.obj) == "bottom" && !self.spirit.is_dead {
+            if self.spirit.borrow_mut().check_hitbox(&goomba.obj) == "bottom" && !self.spirit.borrow_mut().is_dead {
                 goomba.squash();
                 self.score += 100;
-                self.spirit.move_acc_y = 1.5;
+                self.spirit.borrow_mut().move_acc_y = 1.5;
                 goomba.delay = 0;
                 break;
             }
 
-            if self.spirit.check_hitbox(&goomba.obj) == "top" ||
-                self.spirit.check_hitbox(&goomba.obj) == "left" ||
-                self.spirit.check_hitbox(&goomba.obj) == "right" {
-                 self.spirit.is_dead = true;
+            if self.spirit.borrow_mut().check_hitbox(&goomba.obj) == "top" ||
+                self.spirit.borrow_mut().check_hitbox(&goomba.obj) == "left" ||
+                self.spirit.borrow_mut().check_hitbox(&goomba.obj) == "right" {
+                 self.spirit.borrow_mut().is_dead = true;
             }
             if obj_falling {
                 goomba.obj.move_acc_y -= 0.15;
             }
             goomba.obj.y += (deltatime as f32)*0.001*goomba.obj.move_acc_y; 
 
-            if self.spirit.x+1.5 >= goomba.obj.x {
+            if self.spirit.borrow_mut().x+1.5 >= goomba.obj.x {
                 goomba.to_move = true;
             }
             if goomba.to_move && !goomba.is_squash {
@@ -1008,15 +1082,6 @@ impl Game {
         for troopa in self.troopas.iter_mut() {
             let mut obj_falling = true;
             for tile in self.world.tiles.iter_mut() {
-                for brick in tile.floor.iter() {
-                    if troopa.obj.check_hitbox(brick) == "bottom" {
-                        troopa.obj.y = brick.y+brick.h+troopa.obj.h;
-                        if troopa.obj.move_acc_y < 0 as f32 {
-                            troopa.obj.move_acc_y = 0.0;
-                        }
-                        obj_falling = false;
-                    }
-                }
                 for pipe in tile.objects.pipes.iter() {
                     for pipe_obj in pipe.objects.iter() {
                         if troopa.obj.check_hitbox_pipe(pipe_obj) == "right" {
@@ -1031,26 +1096,26 @@ impl Game {
                 }
             }
 
-            if self.spirit.check_hitbox(&troopa.obj) == "bottom" && !self.spirit.is_dead && !troopa.is_squash {
+            if self.spirit.borrow_mut().check_hitbox(&troopa.obj) == "bottom" && !self.spirit.borrow_mut().is_dead && !troopa.is_squash {
                 troopa.squash();
                 self.score += 100;
-                self.spirit.move_acc_y = 1.5;
+                self.spirit.borrow_mut().move_acc_y = 1.5;
                 troopa.delay = 0;
                 troopa.state = 0;
             }
             
-            if self.spirit.check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && troopa.obj.check_hitbox_spirit(&self.spirit) == "right" && !troopa.to_move_squash {
-                self.spirit.move_acc_y = 1.5;
+            if self.spirit.borrow_mut().check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && troopa.obj.check_hitbox_spirit(&self.spirit.borrow_mut()) == "right" && !troopa.to_move_squash {
+                self.spirit.borrow_mut().move_acc_y = 1.5;
                 troopa.obj.move_acc_x = -1 as f32;
                 troopa.to_move_squash = true;
-            }else if self.spirit.check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && !troopa.to_move_squash {
-                self.spirit.move_acc_y = 1.5;
+            }else if self.spirit.borrow_mut().check_hitbox(&troopa.obj) == "bottom" && troopa.is_squash && !troopa.to_move_squash {
+                self.spirit.borrow_mut().move_acc_y = 1.5;
                 troopa.obj.move_acc_x = 1 as f32;
                 troopa.to_move_squash = true;
             }
             
-            if (self.spirit.check_hitbox(&troopa.obj) == "top" || self.spirit.check_hitbox(&troopa.obj) == "left" || self.spirit.check_hitbox(&troopa.obj) == "right") && (!troopa.is_squash || troopa.to_move_squash) {
-                 self.spirit.is_dead = true;
+            if (self.spirit.borrow_mut().check_hitbox(&troopa.obj) == "top" || self.spirit.borrow_mut().check_hitbox(&troopa.obj) == "left" || self.spirit.borrow_mut().check_hitbox(&troopa.obj) == "right") && (!troopa.is_squash || troopa.to_move_squash) {
+                 self.spirit.borrow_mut().is_dead = true;
             }
 
             if obj_falling {
@@ -1058,7 +1123,7 @@ impl Game {
             }
             troopa.obj.y += (deltatime as f32)*0.001*troopa.obj.move_acc_y; 
 
-            if self.spirit.x+1.5 >= troopa.obj.x {
+            if self.spirit.borrow_mut().x+1.5 >= troopa.obj.x {
                 troopa.to_move = true;
             }
             if troopa.to_move && !troopa.is_squash {
@@ -1113,21 +1178,12 @@ impl Game {
                             obj_falling = false;
                         }
                     }
-                    for brick in tile.floor.iter() {
-                        if obj.check_hitbox(brick) == "bottom" {
-                            obj.y = brick.y+brick.h+obj.h;
-                            if obj.move_acc_y < 0 as f32 {
-                                obj.move_acc_y = 0.0;
-                            }
-                            obj_falling = false;
-                        }
-                    }
                 }
                 
-                if self.spirit.check_hitbox(obj) == "bottom" ||
-                    self.spirit.check_hitbox(obj) == "top" ||
-                    self.spirit.check_hitbox(obj) == "left" ||
-                    self.spirit.check_hitbox(obj) == "right" {
+                if self.spirit.borrow_mut().check_hitbox(obj) == "bottom" ||
+                    self.spirit.borrow_mut().check_hitbox(obj) == "top" ||
+                    self.spirit.borrow_mut().check_hitbox(obj) == "left" ||
+                    self.spirit.borrow_mut().check_hitbox(obj) == "right" {
                         indexes_to_remove.push(index);
                 }
                 
@@ -1167,18 +1223,12 @@ impl Game {
                             obj.move_acc_y *= -1 as f32;
                         }
                     }
-                    for brick in tile.floor.iter() {
-                        if obj.check_hitbox(brick) == "bottom" {
-                            obj.y = brick.y+brick.h+obj.h;
-                            obj.move_acc_y = 3.0;
-                        }
-                    }
                 }
                 
-                if self.spirit.check_hitbox(obj) == "bottom" ||
-                    self.spirit.check_hitbox(obj) == "top" ||
-                    self.spirit.check_hitbox(obj) == "left" ||
-                    self.spirit.check_hitbox(obj) == "right" {
+                if self.spirit.borrow_mut().check_hitbox(obj) == "bottom" ||
+                    self.spirit.borrow_mut().check_hitbox(obj) == "top" ||
+                    self.spirit.borrow_mut().check_hitbox(obj) == "left" ||
+                    self.spirit.borrow_mut().check_hitbox(obj) == "right" {
                         indexes_to_remove.push(index);
                 }
 
@@ -1216,79 +1266,72 @@ impl Game {
         self.world.tiles_underground[0].delay += 1;
         self.delay += 1;
 
-        if self.spirit.is_falling {
-            self.spirit.move_acc_y -= 0.15;
+        if self.spirit.borrow_mut().is_falling {
+            self.spirit.borrow_mut().move_acc_y -= 0.15;
         }
-
-        self.spirit.y += (deltatime as f32)*0.001*self.spirit.move_acc_y;
+        if self.spirit.try_borrow_mut().is_ok() {
+            let mut sprt = self.spirit.borrow_mut();
+            sprt.y += (deltatime as f32)*0.001*sprt.move_acc_y;
+        }
         
         //left screen side collision
-        if self.spirit.x-self.spirit.w <= -1.0-(self.screen_move_x) {
-            self.spirit.x = -1.0-(self.screen_move_x)+self.spirit.w;
+        {
+            let mut sprt = self.spirit.borrow_mut();
+            if sprt.x-sprt.w <= -1.0-(self.screen_move_x) {
+                sprt.x = -1.0-(self.screen_move_x)+sprt.w;
+            }
         }
 
-        //if self.spirit.y-self.spirit.h <= -1.0 && !self.spirit.is_dead {
+        //if self.spirit.borrow_mut().y-self.spirit.borrow_mut().h <= -1.0 && !self.spirit.borrow_mut().is_dead {
         //    self.dead();
-        //}else if self.spirit.y-self.spirit.h <= -1.0 && self.spirit.is_dead {
+        //}else if self.spirit.borrow_mut().y-self.spirit.borrow_mut().h <= -1.0 && self.spirit.borrow_mut().is_dead {
         //    self.over();
         //}
 
         // moving
-        if self.spirit.move_vel_x != 0 {
-            if self.spirit.move_vel_x == 1 {
-                self.spirit.flip = true;
+        if self.spirit.borrow().move_acc_x != 0 {
+            let mut sprt = self.spirit.borrow_mut();
+            if sprt.move_acc_x == 1 {
+                sprt.flip = true;
             }else {
-                self.spirit.flip = false;
+                sprt.flip = false;
             }
 
-            if self.spirit.is_moving != 0 && self.spirit.is_moving != self.spirit.move_vel_x {
-                self.spirit.state = 4;
-                self.spirit.is_turn = true;
+            if sprt.is_moving != 0 && sprt.is_moving != sprt.move_acc_x {
+                sprt.state = 4;
+                sprt.is_turn = true;
             }
-            self.spirit.is_moving = self.spirit.move_vel_x;
+            sprt.is_moving = sprt.move_acc_x;
 
-            self.spirit.x -= self.spirit.move_vel_x  as f32 * ((deltatime as f32)*0.001);
-            self.spirit.delay += 1;
+            sprt.x -= sprt.move_acc_x  as f32 * ((deltatime as f32)*0.001);
+            sprt.delay += 1;
         }else{
-            self.spirit.is_moving = 0;
-            self.spirit.state = 0;
+            self.spirit.borrow_mut().is_moving = 0;
+            self.spirit.borrow_mut().state = 0;
         }
-        self.spirit.move_vel_x = 0;
+        self.spirit.borrow_mut().move_acc_x = 0;
 
         // animation
-        if self.spirit.delay == 5  {
-            self.spirit.state += 1;
-            self.spirit.delay = 0;
-            if self.spirit.is_turn {
-                self.spirit.state = 1;
-                self.spirit.is_turn = false;
+        if self.spirit.borrow_mut().delay == 5  {
+            self.spirit.borrow_mut().state += 1;
+            self.spirit.borrow_mut().delay = 0;
+            if self.spirit.borrow_mut().is_turn {
+                self.spirit.borrow_mut().state = 1;
+                self.spirit.borrow_mut().is_turn = false;
             }
         }
 
-        if self.spirit.state == 4 && !self.spirit.is_turn {
-            self.spirit.state = 1;
+        if self.spirit.borrow_mut().state == 4 && !self.spirit.borrow_mut().is_turn {
+            self.spirit.borrow_mut().state = 1;
         }
 
-        if self.spirit.x >= -0.2-(self.screen_move_x) && !self.spirit.is_underground {
+        if self.spirit.borrow_mut().x >= -0.2-(self.screen_move_x) && !self.spirit.borrow_mut().is_underground {
             self.screen_move_x -= (deltatime as f32)*0.001; 
         }
 
-        if self.spirit.is_dead {
-            self.spirit.state = self.spirit.textures.len()-1;
+        if self.spirit.borrow_mut().is_dead {
+            self.spirit.borrow_mut().state = self.spirit.borrow_mut().textures.len()-1;
             self.over();
-        }
-
-
-        unsafe {
-            let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
-            let move_vel = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
-            gl::Uniform2f(move_vel, self.spirit.x, self.spirit.y);
-
-            let cname = std::ffi::CString::new("flipTex").expect("CString::new failed");
-            let flip = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
-            gl::Uniform1i(flip, self.spirit.flip as i32);
         }
 
         let view = glm::mat4(1.0, 0.0, 0.0, self.screen_move_x,
@@ -1301,11 +1344,6 @@ impl Game {
                 let cname = std::ffi::CString::new("view").expect("CString::new failed");
                 let view_loc = gl::GetUniformLocation(tile.bg.background_prog.program, cname.as_ptr());
                 tile.bg.background_prog.set_active();
-                gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
-                
-                let cname = std::ffi::CString::new("view").expect("CString::new failed");
-                let view_loc = gl::GetUniformLocation(tile.floor[0].program.program, cname.as_ptr());
-                tile.floor[0].program.set_active();
                 gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
 
                 for goomba in self.goombas.iter() {
@@ -1356,18 +1394,18 @@ impl Game {
                 obj.program.set_active();
                 gl::Uniform2f(move_vel, obj.x, obj.y);
             }
-
-            let cname = std::ffi::CString::new("view").expect("CString::new failed");
-            let view_loc = gl::GetUniformLocation(self.spirit.program.program, cname.as_ptr());
-            self.spirit.program.set_active();
-            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
         }
-
     }
 
     pub unsafe fn draw(&mut self) {
         if !self.is_over {
             self.world.draw();
+            for obj_ref in self.objects_draw.iter() {
+                let obj = obj_ref.as_ref().borrow();
+                obj.set_uniforms(self.screen_move_x, self.screen_move_y);
+                obj.draw();
+            }
+
             for obj in self.objects_inmove.iter() {
                 obj.program.set_active();
                 obj.draw();
@@ -1410,7 +1448,7 @@ impl Game {
 
             self.hud_coin_icon.draw();
 
-            self.spirit.draw();
+            self.spirit.borrow_mut().draw();
         }
     }
 }

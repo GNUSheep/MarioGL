@@ -83,21 +83,7 @@ impl Texts {
 
         unsafe {
             for obj in objects.iter() {
-                obj.set_vertex_attrib_pointer(0, 
-                    3, 
-                    gl::FLOAT, 
-                    gl::FALSE, 
-                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                    std::ptr::null()
-                );
-                
-                obj.set_vertex_attrib_pointer(1, 
-                    2, 
-                    gl::FLOAT, 
-                    gl::FALSE, 
-                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                    (3 * std::mem::size_of::<f32>()) as *const c_void, 
-                );
+                obj.set_vertex_attrib_pointers();
             }
             self.program.set_active();
             gl::BindTexture(gl::TEXTURE_2D, self.texture.texture);
@@ -223,26 +209,27 @@ impl Object {
         self.w = w;
     }
 
-    pub unsafe fn set_vertex_attrib_pointer(
-        &self,
-        loc: gl::types::GLuint, 
-        size: gl::types::GLint, 
-        data_type: gl::types::GLenum,
-        normalized: gl::types::GLboolean,
-        stride: gl::types::GLsizei,
-        pointer: *const c_void,
-    ) {
+    pub unsafe fn set_vertex_attrib_pointers(&self) {
         gl::BindVertexArray(self.vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
         gl::VertexAttribPointer(
-            loc,
-            size,
-            data_type,
-            normalized,
-            stride,
-            pointer,
+            0,
+            3, 
+            gl::FLOAT, 
+            gl::FALSE, 
+            (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
+            std::ptr::null()
         );
-        gl::EnableVertexAttribArray(loc);
+        gl::EnableVertexAttribArray(0);
+        gl::VertexAttribPointer(
+            1,
+            2, 
+            gl::FLOAT, 
+            gl::FALSE, 
+            (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
+            (3 * std::mem::size_of::<f32>()) as *const c_void, 
+        );
+        gl::EnableVertexAttribArray(1);
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         gl::BindVertexArray(0);
     }

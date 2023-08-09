@@ -2,6 +2,8 @@ use crate::scenes::game;
 use crate::scenes::game::background;
 use crate::scenes::game::objects;
 use std::path::Path;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct TileUnderground {
     pub floor: Vec<game::Block>,
@@ -77,7 +79,6 @@ impl TileUnderground {
 
 pub struct Tile {
     pub bg: background::Background,
-    pub floor: Vec<game::Block>,
     pub objects: objects::Objects,
     move_by: f32,
     bg_index: u32,
@@ -85,11 +86,17 @@ pub struct Tile {
 }
 
 impl Tile {
-    fn create(last_pos: i32, add: i32, mut bg_index: u32, mut move_by: f32, floor_hole: Vec<i32>) -> Self {
+    fn create(
+        last_pos: i32, 
+        add: i32, 
+        mut bg_index: u32, 
+        mut move_by: f32,
+        floor_hole: Vec<i32>, 
+        collisions_objects: &mut Vec<Rc<RefCell<dyn objects::Collisioner>>>,
+        objects_draw: &mut Vec<Rc<RefCell<dyn objects::Drawer>>>,
+    ) -> Self {
         let bg = background::Background::init(move_by, -1.0+((16.0/240.0)*13 as f32), 208.0/240.0, 1.0, bg_index); 
 
-        // Floor
-        let mut floor: Vec<game::Block> = vec![];
         let mut last_drawpos = 0;
 
         let mut counter = 0;
@@ -108,7 +115,13 @@ impl Tile {
                         &Path::new("src/scenes/game/assets/images/stone.png"),
                         "block",
                     );
-                    floor.push(stone);
+                    let floor_brick_rc: Rc<RefCell<game::Block>> = Rc::new(RefCell::new(stone));
+
+                    let floor_brick_drawer: Rc<RefCell<dyn objects::Drawer>> = floor_brick_rc.clone();
+                    objects_draw.push(floor_brick_drawer);
+
+                    let floor_brick_collisioner: Rc<RefCell<dyn objects::Collisioner>> = floor_brick_rc.clone();
+                    collisions_objects.push(floor_brick_collisioner);
                 }
                 last_drawpos = i;
                 block_index += 1;
@@ -123,17 +136,12 @@ impl Tile {
         }
         move_by += 2.0;
 
-        Self{bg, floor, objects, move_by, bg_index, last_drawpos}
+        Self{bg, objects, move_by, bg_index, last_drawpos}
     }
 
     unsafe fn draw(&self) {
         self.bg.background_prog.set_active();
         self.bg.draw();
-
-        self.floor[0].program.set_active();
-        for stone in self.floor.iter() {
-            stone.draw()
-        }
 
         self.objects.draw()
     }
@@ -146,7 +154,10 @@ pub struct World {
 }
 
 impl World {
-    pub fn init() -> Self {
+    pub fn init(
+        mut collisions_objects: &mut Vec<Rc<RefCell<dyn objects::Collisioner>>>,
+        mut objects_draw: &mut Vec<Rc<RefCell<dyn objects::Drawer>>>,
+    ) -> Self {
         let mut tiles: Vec<Tile> = vec![];
         
         let mut tiles_underground: Vec<TileUnderground> = vec![];
@@ -195,12 +206,12 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![]; 
 
-        let tile1 = Tile::create(1, 1, 1, 0.0, floor_hole);
+        let tile1 = Tile::create(1, 1, 1, 0.0, floor_hole, &mut collisions_objects, &mut objects_draw);
         tiles.push(tile1);
         
         let floor_hole: Vec<i32> = vec![]; 
 
-        let mut tile2 = Tile::create(tiles[0].last_drawpos+2, 2, tiles[0].bg_index, tiles[0].move_by, floor_hole);
+        let mut tile2 = Tile::create(tiles[0].last_drawpos+2, 2, tiles[0].bg_index, tiles[0].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile2.objects.create_question_mark_block(
             -1.0+((16.0/256.0)*33 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -270,7 +281,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![]; 
 
-        let mut tile3 = Tile::create(tiles[1].last_drawpos+2, 3, tiles[1].bg_index, tiles[1].move_by, floor_hole);
+        let mut tile3 = Tile::create(tiles[1].last_drawpos+2, 3, tiles[1].bg_index, tiles[1].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile3.objects.create_pipe(
             -1.0+((16.0/256.0)*78 as f32), 
             -1.0+((16.0/240.0)*9 as f32),
@@ -293,7 +304,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![]; 
 
-        let mut tile4 = Tile::create(tiles[2].last_drawpos+2, 4, tiles[2].bg_index, tiles[2].move_by, floor_hole);
+        let mut tile4 = Tile::create(tiles[2].last_drawpos+2, 4, tiles[2].bg_index, tiles[2].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile4.objects.create_pipe(
             -1.0+((16.0/256.0)*116 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -307,7 +318,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![5, 6, 21, 22]; 
 
-        let mut tile5 = Tile::create(tiles[3].last_drawpos+2, 5, tiles[3].bg_index, tiles[3].move_by, floor_hole);
+        let mut tile5 = Tile::create(tiles[3].last_drawpos+2, 5, tiles[3].bg_index, tiles[3].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile5.objects.create_block(
             -1.0+((16.0/256.0)*155 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -336,7 +347,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![7, 8, 9, 23, 24, 25];
 
-        let mut tile6 = Tile::create(tiles[4].last_drawpos+2, 6, tiles[4].bg_index, tiles[4].move_by, floor_hole);
+        let mut tile6 = Tile::create(tiles[4].last_drawpos+2, 6, tiles[4].bg_index, tiles[4].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         for i in (0..=7*2).step_by(2) {
             tile6.objects.create_block(
                 -1.0+((16.0/256.0)*((161+i) as f32)), 
@@ -378,7 +389,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![];
 
-        let mut tile7 = Tile::create(tiles[5].last_drawpos+2, 7, tiles[5].bg_index, tiles[5].move_by, floor_hole);
+        let mut tile7 = Tile::create(tiles[5].last_drawpos+2, 7, tiles[5].bg_index, tiles[5].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile7.objects.create_block(
             -1.0+(16.0/256.0)*(201 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
@@ -424,7 +435,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![];
 
-        let mut tile8 = Tile::create(tiles[6].last_drawpos+2, 8, tiles[6].bg_index, tiles[6].move_by, floor_hole);
+        let mut tile8 = Tile::create(tiles[6].last_drawpos+2, 8, tiles[6].bg_index, tiles[6].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile8.objects.create_question_mark_block(
             -1.0+(16.0/256.0)*(225 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
@@ -455,7 +466,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![];
 
-        let mut tile9 = Tile::create(tiles[7].last_drawpos+2, 9, tiles[7].bg_index, tiles[7].move_by, floor_hole);
+        let mut tile9 = Tile::create(tiles[7].last_drawpos+2, 9, tiles[7].bg_index, tiles[7].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile9.objects.create_block(
             -1.0+(16.0/256.0)*(257 as f32), 
             -1.0+(16.0/240.0)*(19 as f32),
@@ -528,7 +539,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![10, 11, 26, 27];
 
-        let mut tile10 = Tile::create(tiles[8].last_drawpos+2, 10, tiles[8].bg_index, tiles[8].move_by, floor_hole);
+        let mut tile10 = Tile::create(tiles[8].last_drawpos+2, 10, tiles[8].bg_index, tiles[8].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         for i in (0..=3*2).step_by(2) {
             tile10.objects.create_stone(
                 -1.0+(16.0/256.0)*(305 as f32), 
@@ -562,7 +573,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![];
 
-        let mut tile11 = Tile::create(tiles[9].last_drawpos+2, 11, tiles[9].bg_index, tiles[9].move_by, floor_hole);
+        let mut tile11 = Tile::create(tiles[9].last_drawpos+2, 11, tiles[9].bg_index, tiles[9].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile11.objects.create_pipe(
             -1.0+(16.0/256.0)*(328 as f32), 
             -1.0+(16.0/240.0)*(7 as f32),
@@ -608,7 +619,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![];
 
-        let mut tile12 = Tile::create(tiles[10].last_drawpos+2, 12, tiles[10].bg_index, tiles[10].move_by, floor_hole);
+        let mut tile12 = Tile::create(tiles[10].last_drawpos+2, 12, tiles[10].bg_index, tiles[10].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile12.objects.create_pipe(
             -1.0+(16.0/256.0)*(360 as f32), 
             -1.0+(16.0/240.0)*(7 as f32),
@@ -640,7 +651,7 @@ impl World {
 
         let floor_hole: Vec<i32> = vec![];
 
-        let mut tile13 = Tile::create(tiles[11].last_drawpos+2, 13, tiles[11].bg_index, tiles[11].move_by, floor_hole);
+        let mut tile13 = Tile::create(tiles[11].last_drawpos+2, 13, tiles[11].bg_index, tiles[11].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         tile13.objects.create_flag(
             -1.0+(16.0/256.0)*(397 as f32), 
             -1.0+(16.0/240.0)*(5 as f32),

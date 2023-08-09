@@ -46,21 +46,7 @@ impl Background {
         }
 
         unsafe {
-            obj.set_vertex_attrib_pointer(0, 
-                3, 
-                gl::FLOAT, 
-                gl::FALSE, 
-                (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                std::ptr::null()
-            );
-            
-            obj.set_vertex_attrib_pointer(1, 
-                2, 
-                gl::FLOAT, 
-                gl::FALSE, 
-                (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                (3 * std::mem::size_of::<f32>()) as *const c_void, 
-            );
+            obj.set_vertex_attrib_pointers();
         }
         
 

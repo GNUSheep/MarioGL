@@ -30,6 +30,7 @@ fn main() {
     let mut left = false;
 
     let mut sec = 0;
+    let mut deltatime = 16u32;
     'main: loop {
         let last_ticks = timer_subsystem.ticks();
         for event in event_pump.poll_iter() {
@@ -66,8 +67,7 @@ fn main() {
         unsafe{game.draw()};
         window.gl_swap_window();
 
-        let deltatime = timer_subsystem.ticks()-last_ticks;
-
+        
         sec += deltatime;
         if sec > 1000 {
             sec = 0;
@@ -79,5 +79,6 @@ fn main() {
         }else {
             game.handle(deltatime);
         }
+        deltatime = timer_subsystem.ticks()-last_ticks;
     }
 }

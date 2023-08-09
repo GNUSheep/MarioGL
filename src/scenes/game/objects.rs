@@ -3,6 +3,60 @@ use crate::scenes::game;
 use std::path::Path;
 use std::ffi::{CString, c_void};
 
+pub struct Collision_rect {
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+}
+
+impl Collision_rect {
+    fn get_intersection(&self, b: Collision_rect) -> (f32, f32, bool) {
+        let x_distance = self.x - b.x;
+        let y_distance = self.y - b.y;
+        let min_distance_x = self.w + b.w;
+        let min_distance_y = self.h + b.h;
+        if f32::abs(x_distance) >= min_distance_x || f32::abs(y_distance) >= min_distance_x
+        {
+            return (0.0, 0.0, false);
+        }
+        let depth_x = if x_distance > 0.0 { min_distance_x - x_distance } else { -min_distance_x - x_distance };
+        let depth_y = if y_distance > 0.0 { min_distance_y - y_distance } else { -min_distance_y - y_distance };
+        return (depth_x, depth_y, true);
+    }
+
+    pub fn check_hitbox(&self, b: Collision_rect) -> Vec<char> {
+        let intersection = self.get_intersection(b);
+        if intersection.2 == false || (intersection.0 == 0.0 && intersection.1 == 0.0) {
+            return vec!['0'];
+        }
+        let mut collisions: Vec<char> = vec![];
+        if intersection.1.abs() - 0.01 <= intersection.0.abs() {
+            if intersection.1 > 0.0 {collisions.push('b')}
+            else if intersection.1 < 0.0 {collisions.push('t')}
+        }else if intersection.1.abs() > intersection.0.abs() {
+            if intersection.0 > 0.0 {collisions.push('l')}
+            else if intersection.0 < 0.0 {collisions.push('r')}
+        }
+        return collisions;
+    }
+}
+
+pub trait Collisioner {
+    fn get_collision_rect(&self) -> Collision_rect;
+    fn get_type(&self) -> &String;
+    fn handle_collision(&mut self, collision_object: &String, collision_rect: Collision_rect, collisions: Vec<char>);
+    fn set_default_behavior(&mut self);
+    fn run_default_behavior(&mut self, deltatime: u32);
+}
+
+pub trait Drawer {
+    unsafe fn get_program(&self) -> &render::Program;
+    unsafe fn set_uniforms(&self, view_x: f32, view_y: f32);
+    unsafe fn draw(&self);
+}
+
+
 pub struct Troopa {
     pub delay: usize,
     pub state: usize,
@@ -196,21 +250,7 @@ impl Flag {
 
         unsafe {
             for obj in objects.iter() {
-                obj.set_vertex_attrib_pointer(0, 
-                    3, 
-                    gl::FLOAT, 
-                    gl::FALSE, 
-                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                    std::ptr::null()
-                );
-                
-                obj.set_vertex_attrib_pointer(1, 
-                    2, 
-                    gl::FLOAT, 
-                    gl::FALSE, 
-                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                    (3 * std::mem::size_of::<f32>()) as *const c_void, 
-                );
+                obj.set_vertex_attrib_pointers();
             }
         }
 
@@ -320,21 +360,7 @@ impl Pipe {
 
         unsafe {
             for obj in objects.iter() {
-                obj.set_vertex_attrib_pointer(0, 
-                    3, 
-                    gl::FLOAT, 
-                    gl::FALSE, 
-                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                    std::ptr::null()
-                );
-                
-                obj.set_vertex_attrib_pointer(1, 
-                    2, 
-                    gl::FLOAT, 
-                    gl::FALSE, 
-                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                    (3 * std::mem::size_of::<f32>()) as *const c_void, 
-                );
+                obj.set_vertex_attrib_pointers();
             }
         }
         
@@ -465,21 +491,7 @@ impl Pipe {
 
         unsafe {
             for obj in objects.iter() {
-                obj.set_vertex_attrib_pointer(0, 
-                    3, 
-                    gl::FLOAT, 
-                    gl::FALSE, 
-                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                    std::ptr::null()
-                );
-                
-                obj.set_vertex_attrib_pointer(1, 
-                    2, 
-                    gl::FLOAT, 
-                    gl::FALSE, 
-                    (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                    (3 * std::mem::size_of::<f32>()) as *const c_void, 
-                );
+                obj.set_vertex_attrib_pointers();
             }
         }
 
@@ -555,21 +567,7 @@ impl QuestionMarkBlock {
         let program = render::Program::create_with_shaders(&[vert_shader, frag_shader]).unwrap();
 
         unsafe {
-            obj.set_vertex_attrib_pointer(0, 
-                3, 
-                gl::FLOAT, 
-                gl::FALSE, 
-                (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                std::ptr::null()
-            );
-            
-            obj.set_vertex_attrib_pointer(1, 
-                2, 
-                gl::FLOAT, 
-                gl::FALSE, 
-                (5 * std::mem::size_of::<f32>()) as gl::types::GLint, 
-                (3 * std::mem::size_of::<f32>()) as *const c_void, 
-            );
+            obj.set_vertex_attrib_pointers();
         }
 
         let state = 0;
