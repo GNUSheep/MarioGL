@@ -39,10 +39,10 @@ pub struct Spirit {
 impl Spirit {
     pub fn create(x: f32, y: f32, h: f32, w: f32, path: &Path) -> Self {
         let points: Vec<f32> = vec![
-            x+w, y+h, 0.0, 1.0, 0.0,
-            x+w, y-h, 0.0, 1.0, 1.0,
-            x-w, y-h, 0.0, 0.0, 1.0,
-            x-w, y+h, 0.0, 0.0, 0.0
+            w, h, 0.0, 1.0, 0.0,
+            w, -h, 0.0, 1.0, 1.0,
+            -w, -h, 0.0, 0.0, 1.0,
+            -w, h, 0.0, 0.0, 0.0
         ];
 
         const INDCIES: [i32; 6] = [
@@ -163,17 +163,38 @@ impl objects::Collisioner for Spirit {
     }
     fn handle_collision(&mut self, collision_object: &String, collision_rect: objects::Collision_rect, collisions: Vec<char>) {
         for collision in collisions.iter() {
-            if collision_object == "block" {
-                if collision == &'b' {
-                    self.y = collision_rect.y+collision_rect.h+self.h-0.01;
-                    if self.move_acc_y < 0 as f32 {
-                        self.move_acc_y = 0.0;
+            match collision {
+                &'b' => {
+                    if collision_object == "block" || collision_object == "?block" {
+                        self.y = collision_rect.y+collision_rect.h+self.h-0.01;
+                        if self.move_acc_y < 0 as f32 {
+                            self.move_acc_y = 0.0;
+                        }
+                        self.is_falling = false;
                     }
-                    self.is_falling = false;
+                },
+                &'t' => {
+                    if collision_object == "block" || collision_object == "?block" {
+                        self.y = collision_rect.y-collision_rect.h-self.h+0.01;
+
+                        self.move_acc_y *= -1 as f32;
+                    }
                 }
+                &'l' => {
+                    if collision_object == "block" || collision_object == "?block" {
+                        self.x = collision_rect.x+collision_rect.w+self.w+0.01;
+                    }
+                }
+                &'r' => {
+                    if collision_object == "block" || collision_object == "?block" {
+                        self.x = collision_rect.x-collision_rect.w-self.w-0.01;
+                    }
+                }
+                _ => (),
             }
         }
     }
+    fn get_collision(&mut self){}
     fn set_default_behavior(&mut self) {
         self.is_falling = true;
     }
@@ -243,10 +264,10 @@ pub struct Block {
 impl Block {
     pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool, path: &Path, collision_name: &str) -> Self {
         let points: Vec<f32> = vec![
-            x+w, y+h, 0.0, 1.0, 0.0,
-            x+w, y-h, 0.0, 1.0, 1.0,
-            x-w, y-h, 0.0, 0.0, 1.0,
-            x-w, y+h, 0.0, 0.0, 0.0
+            w,  h, 0.0, 1.0, 0.0,
+            w, -h, 0.0, 1.0, 1.0,
+            -w, -h, 0.0, 0.0, 1.0,
+            -w, h, 0.0, 0.0, 0.0
         ];
 
         const INDCIES: [i32; 6] = [
@@ -424,6 +445,7 @@ impl objects::Collisioner for Block {
         &self.object_type
     }
     fn handle_collision(&mut self, collision_object: &String, collision_rect: objects::Collision_rect, collisions: Vec<char>){}
+    fn get_collision(&mut self){}
     fn set_default_behavior(&mut self){}
     fn run_default_behavior(&mut self, deltatime: u32){}
 }
@@ -577,10 +599,7 @@ impl Game {
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon2.png")));
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon3.png")));
 
-        let mut spirit_obj = Spirit::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
-        spirit_obj.x = -0.3;
-        spirit_obj.y = -1.0+((16.0/240.0)*7 as f32);
-
+        let mut spirit_obj = Spirit::create(-0.3, -1.0+((16.0/240.0)*7 as f32), 16.0/240.0, 16.0/256.0, &Path::new("src/scenes/game/assets/images/mario.png"));
         let spirit: Rc<RefCell<Spirit>> = Rc::new(RefCell::new(spirit_obj));
 
         let spirit_drawer: Rc<RefCell<dyn objects::Drawer>> = spirit.clone();
@@ -588,6 +607,7 @@ impl Game {
 
         let spirit_collisioner: Rc<RefCell<dyn objects::Collisioner>> = spirit.clone();
         collisions_objects.push(spirit_collisioner);
+
         Self{world, spirit, objects_still, objects_inmove, goombas, troopas, delay, screen_move_x, screen_move_y, is_over, is_endlvl, hud, hud_coin_icon, score, coins, world_number, world_level, time, collisions_objects, objects_draw}
     }
 
@@ -771,40 +791,6 @@ impl Game {
                     }else if sprt.check_hitbox_pipe(obj) == "right" {
                         sprt.x = obj.x-obj.w-sprt.w-0.01;
                     }
-                }
-            }
-            
-            // Question mark box collision handling and animation
-            for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
-                question_mark_block.delay += 1;
-
-                if question_mark_block.delay >= 15 && !question_mark_block.is_hit {
-                    question_mark_block.delay = 0;
-                    question_mark_block.state += 1;
-                    if question_mark_block.state == 3 {
-                        question_mark_block.state = 0;
-                    }
-                }
-
-                if sprt.check_hitbox_question_mark_block(question_mark_block) == "bottom" {
-                    sprt.y = question_mark_block.y+question_mark_block.h+sprt.h;
-                    if sprt.move_acc_y < 0 as f32 {
-                        sprt.move_acc_y = 0.0;
-                    }
-                    sprt.is_falling = false;
-                }else if sprt.check_hitbox_question_mark_block(question_mark_block) == "top" {
-                    sprt.y = question_mark_block.y-question_mark_block.h-sprt.w;
-                    if question_mark_block.collision_name == "mushroom" {
-                        question_mark_block.handler(&mut self.objects_inmove);
-                    }else {
-                        question_mark_block.handler(&mut self.objects_still);
-                    }
-
-                    sprt.move_acc_y = -1.0
-                }else if sprt.check_hitbox_question_mark_block(question_mark_block) == "left" {
-                    sprt.x = question_mark_block.x+question_mark_block.w+sprt.w+0.01;
-                }else if sprt.check_hitbox_question_mark_block(question_mark_block) == "right" {
-                    sprt.x = question_mark_block.x-question_mark_block.w-sprt.w-0.01;
                 }
             }
 
@@ -1002,21 +988,6 @@ impl Game {
                         goomba.delay = 0;
                     }
                 }
-
-                for question_mark_block in tile.objects.question_mark_blocks.iter_mut() {
-                    if self.spirit.borrow_mut().check_hitbox_question_mark_block(question_mark_block) == "bottom" {
-                        goomba.obj.y = question_mark_block.y+question_mark_block.h+goomba.obj.h;
-                        if goomba.obj.move_acc_y < 0 as f32 {
-                            goomba.obj.move_acc_y = 0.0;
-                        }
-                        obj_falling = false;
-                    }
-
-//                    if self.spirit.borrow_mut().check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
-//                        goomba.squash();
-//                        goomba.delay = 0;
-//                    }
-                }
             }
 
             // TODO: goombas collision with eachother
@@ -1169,15 +1140,6 @@ impl Game {
                             obj.move_acc_x *= -1 as f32;
                         }
                     }
-                    for block in tile.objects.question_mark_blocks.iter_mut() {
-                        if obj.check_hitbox_question_mark_block(block) == "bottom" {
-                            obj.y = block.y+block.h+obj.h;
-                            if obj.move_acc_y < 0 as f32 {
-                                obj.move_acc_y = 0.0;
-                            }
-                            obj_falling = false;
-                        }
-                    }
                 }
                 
                 if self.spirit.borrow_mut().check_hitbox(obj) == "bottom" ||
@@ -1213,14 +1175,6 @@ impl Game {
                             obj.move_acc_y *= -1 as f32;
                         }else if obj.check_hitbox(block) == "left" || obj.check_hitbox(block) == "right" {
                             obj.move_acc_x *= -1 as f32;
-                        }
-                    }
-                    for block in tile.objects.question_mark_blocks.iter_mut() {
-                        if obj.check_hitbox_question_mark_block(block) == "bottom" {
-                            obj.y = block.y+block.h+obj.h;
-                            obj.move_acc_y = 3.0;
-                        }else if obj.check_hitbox_question_mark_block(block) == "top" {
-                            obj.move_acc_y *= -1 as f32;
                         }
                     }
                 }

@@ -212,7 +212,7 @@ impl World {
         let floor_hole: Vec<i32> = vec![]; 
 
         let mut tile2 = Tile::create(tiles[0].last_drawpos+2, 2, tiles[0].bg_index, tiles[0].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile2.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*33 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
@@ -220,6 +220,7 @@ impl World {
             true,
             "coin".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*41 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -228,7 +229,7 @@ impl World {
             true,
             "src/scenes/game/assets/images/brick.png",
         );
-        tile2.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*43 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
@@ -236,6 +237,7 @@ impl World {
             true,
             "mushroom".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*45 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -244,7 +246,7 @@ impl World {
             false,
             "src/scenes/game/assets/images/brick.png",
         );
-        tile2.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*45 as f32), 
             -1.0+((16.0/240.0)*19 as f32),
             16.0/240.0, 
@@ -252,7 +254,8 @@ impl World {
             true,
             "coin".to_string(),
         );
-        tile2.objects.create_question_mark_block(
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*47 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
@@ -260,6 +263,7 @@ impl World {
             true,
             "coin".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile2.objects.create_block(
             -1.0+((16.0/256.0)*49 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -327,7 +331,7 @@ impl World {
             false,
             "src/scenes/game/assets/images/brick.png",
         );
-        tile5.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*157 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
@@ -335,6 +339,7 @@ impl World {
             true,
             "mushroom".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile5.objects.create_block(
             -1.0+((16.0/256.0)*159 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -368,7 +373,7 @@ impl World {
                 "src/scenes/game/assets/images/brick.png",
             );
         }
-        tile6.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*189 as f32), 
             -1.0+((16.0/240.0)*19 as f32),
             16.0/240.0, 
@@ -376,6 +381,7 @@ impl World {
             true,
             "coin".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile6.objects.create_block(
             -1.0+((16.0/256.0)*(189 as f32)), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -407,7 +413,7 @@ impl World {
             "src/scenes/game/assets/images/brick.png",
         );
         tile7.objects.blocks[1].collision_name = "star".to_string();
-        tile7.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(213 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
@@ -415,7 +421,8 @@ impl World {
             true,
             "mushroom".to_string(),
         );
-        tile7.objects.create_question_mark_block(
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(219 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
@@ -423,7 +430,8 @@ impl World {
             true,
             "coin".to_string(),
         );
-        tile7.objects.create_question_mark_block(
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(219 as f32), 
             -1.0+(16.0/240.0)*(19 as f32),
             16.0/240.0, 
@@ -431,12 +439,13 @@ impl World {
             true,
             "coin".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tiles.push(tile7);
 
         let floor_hole: Vec<i32> = vec![];
 
         let mut tile8 = Tile::create(tiles[6].last_drawpos+2, 8, tiles[6].bg_index, tiles[6].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile8.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(225 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
@@ -444,6 +453,7 @@ impl World {
             true,
             "coin".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile8.objects.create_block(
             -1.0+(16.0/256.0)*(237 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
@@ -475,7 +485,7 @@ impl World {
             false,
             "src/scenes/game/assets/images/brick.png",
         );
-        tile9.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(259 as f32), 
             -1.0+(16.0/240.0)*(19 as f32),
             16.0/240.0, 
@@ -483,7 +493,8 @@ impl World {
             true,
             "coin".to_string(),
         );
-        tile9.objects.create_question_mark_block(
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(261 as f32), 
             -1.0+(16.0/240.0)*(19 as f32),
             16.0/240.0, 
@@ -491,6 +502,7 @@ impl World {
             true,
             "coin".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile9.objects.create_block(
             -1.0+(16.0/256.0)*(263 as f32), 
             -1.0+(16.0/240.0)*(19 as f32),
@@ -599,7 +611,7 @@ impl World {
             false,
             "src/scenes/game/assets/images/brick.png",
         );
-        tile11.objects.create_question_mark_block(
+        let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(341 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
@@ -607,6 +619,7 @@ impl World {
             true,
             "coin".to_string(),
         );
+        question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile11.objects.create_block(
             -1.0+(16.0/256.0)*(343 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),

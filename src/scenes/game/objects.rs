@@ -2,6 +2,8 @@ use crate::render;
 use crate::scenes::game;
 use std::path::Path;
 use std::ffi::{CString, c_void};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct Collision_rect {
     pub x: f32,
@@ -46,6 +48,7 @@ pub trait Collisioner {
     fn get_collision_rect(&self) -> Collision_rect;
     fn get_type(&self) -> &String;
     fn handle_collision(&mut self, collision_object: &String, collision_rect: Collision_rect, collisions: Vec<char>);
+    fn get_collision(&mut self); 
     fn set_default_behavior(&mut self);
     fn run_default_behavior(&mut self, deltatime: u32);
 }
@@ -520,6 +523,8 @@ pub struct QuestionMarkBlock {
     pub y: f32,
     pub h: f32,
     pub w: f32,
+    pub object_type: String,
+    pub move_block: bool,
     pub collision_event: bool,
     pub collision_name: String,
     pub state: usize,
@@ -531,12 +536,19 @@ pub struct QuestionMarkBlock {
 }
 
 impl QuestionMarkBlock {
-    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool, collision_name: String) -> Self {
+    pub fn create(
+        x: f32,
+        y: f32, 
+        h: f32, 
+        w: f32, 
+        collision_event: bool, 
+        collision_name: String
+    ) -> Self {
         let points: Vec<f32> = vec![
-            x+w, y+h, 0.0, 1.0, 0.0,
-            x+w, y-h, 0.0, 1.0, 1.0,
-            x-w, y-h, 0.0, 0.0, 1.0,
-            x-w, y+h, 0.0, 0.0, 0.0
+            w, h, 0.0, 1.0, 0.0,
+            w, -h, 0.0, 1.0, 1.0,
+            -w, -h, 0.0, 0.0, 1.0,
+            -w, h, 0.0, 0.0, 0.0
         ];
 
         const INDCIES: [i32; 6] = [
@@ -573,8 +585,23 @@ impl QuestionMarkBlock {
         let state = 0;
         let delay = 0;
         let is_hit = false;
+        let move_block = false;
 
-        Self{x, y, w, h, collision_event, collision_name, state, delay, is_hit, obj, textures, program} 
+        Self{x, y, w, h, object_type: "?block".to_string(), move_block, collision_event, collision_name, state, delay, is_hit, obj, textures, program} 
+    }
+
+    pub fn attach_to_main_loop(
+        self,
+        mut collisions_objects: &mut Vec<Rc<RefCell<dyn Collisioner>>>,
+        mut objects_draw: &mut Vec<Rc<RefCell<dyn Drawer>>>,
+    ){
+        let question_mark_block_rc: Rc<RefCell<QuestionMarkBlock>> = Rc::new(RefCell::new(self));
+
+        let question_mark_block_drawer: Rc<RefCell<dyn Drawer>> = question_mark_block_rc.clone();
+        objects_draw.push(question_mark_block_drawer);
+
+        let question_mark_block_collisioner: Rc<RefCell<dyn Collisioner>> = question_mark_block_rc.clone();
+        collisions_objects.push(question_mark_block_collisioner);
     }
 
     pub fn handler(&mut self, objects: &mut Vec<game::Block>) {
@@ -633,7 +660,57 @@ impl QuestionMarkBlock {
         self.is_hit = true;
     } 
 
-    pub unsafe fn draw(&self) {
+}
+
+impl Collisioner for QuestionMarkBlock {
+    fn get_collision_rect(&self) -> Collision_rect {
+        Collision_rect{
+            x: self.x, 
+            y: self.y, 
+            w: self.w, 
+            h: self.h,
+        }
+    }
+    fn get_type(&self) -> &String {
+        &self.object_type
+    }
+    fn handle_collision(&mut self, collision_object: &String, collision_rect: Collision_rect, collisions: Vec<char>){}
+    fn get_collision(&mut self){
+        self.move_block = true; 
+        self.delay = 0;
+    }
+    fn set_default_behavior(&mut self){}
+    fn run_default_behavior(&mut self, deltatime: u32){
+        if self.move_block == true {
+            self.y += 8.0/240.0;
+            self.move_block = false;
+        }
+    }
+}
+
+impl Drawer for QuestionMarkBlock {
+    unsafe fn get_program(&self) -> &render::Program {
+        &self.program
+    }
+
+    unsafe fn set_uniforms(&self, view_x: f32, view_y: f32) {
+        let view = glm::mat4(1.0, 0.0, 0.0, view_x,
+            0.0, 1.0, 0.0, view_y,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0);
+        let cname = std::ffi::CString::new("view").expect("CString::new failed");
+        let view_loc = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+        let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+        let move_vel = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::Uniform2f(move_vel, self.x, self.y);
+    }
+
+    unsafe fn draw(&self) {
+        self.program.set_active();
         gl::BindTexture(gl::TEXTURE_2D, self.textures[self.state].texture);
         gl::BindVertexArray(self.obj.vao);
         gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
@@ -641,7 +718,6 @@ impl QuestionMarkBlock {
 }
 
 pub struct Objects {
-    pub question_mark_blocks: Vec<QuestionMarkBlock>,
     pub blocks: Vec<game::Block>,
     pub stones: Vec<game::Block>,
     pub pipes: Vec<Pipe>,
@@ -653,7 +729,6 @@ pub struct Objects {
 
 impl Objects {
     pub fn init() -> Self {
-        let question_mark_blocks: Vec<QuestionMarkBlock> = vec![];
         let blocks: Vec<game::Block> = vec![];
         let stones: Vec<game::Block> = vec![];
         let pipes: Vec<Pipe> = vec![];
@@ -662,7 +737,7 @@ impl Objects {
         let coins: Vec<game::Block> = vec![];
         let goombas: Vec<Goomba> = vec![];
 
-        Self{question_mark_blocks, blocks, stones, pipes, flag, castle, coins, goombas}
+        Self{blocks, stones, pipes, flag, castle, coins, goombas}
     }
 
     pub fn create_castle(&mut self, x: f32, y: f32, size: &str) {
@@ -715,12 +790,6 @@ impl Objects {
         self.blocks.push(block);
     }
 
-    pub fn create_question_mark_block(&mut self, x: f32, y: f32, h: f32, w: f32, collision_event: bool, collision_name: String) {
-        let block = QuestionMarkBlock::create(x, y, h, w, collision_event, collision_name);
-
-        self.question_mark_blocks.push(block);
-    }
-
     pub unsafe fn draw(&self) {
         for coin in self.coins.iter() {
             coin.draw();
@@ -744,10 +813,6 @@ impl Objects {
 
         for stone in self.stones.iter() {
             stone.draw();
-        }
-
-        for question_mark_block in self.question_mark_blocks.iter() {
-            question_mark_block.draw();
         }
 
         for goomba in self.goombas.iter() {
