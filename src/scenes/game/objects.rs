@@ -72,7 +72,7 @@ pub struct Troopa {
 
 impl Troopa {
     pub fn create(x: f32, y: f32) -> Self {
-        let mut obj = game::Block::create(0.0, 0.0, 24.0/240.0, 16.0/256.0, false, &Path::new("src/scenes/game/assets/images/troopa1.png"), "troopa");
+        let mut obj = game::Block::create(0.0, 0.0, 24.0/240.0, 16.0/256.0, false, "src/scenes/game/assets/images/troopa1.png", "troopa", "troopa");
 
         let vert_shader = render::Shader::vertex_from_src(
             &CString::new(include_str!("assets/shaders/troopa.vert")).unwrap(),
@@ -103,7 +103,7 @@ impl Troopa {
     pub fn squash(&mut self) {
         let x = self.obj.x;
         let y = self.obj.y;
-        self.obj = game::Block::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, false, &Path::new("src/scenes/game/assets/images/troopa_squash.png"), "goomba");
+        self.obj = game::Block::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, false, "src/scenes/game/assets/images/troopa_squash.png", "goomba", "goomba");
         self.obj.x = x;
         self.obj.y = y;
 
@@ -128,7 +128,7 @@ pub struct Goomba {
 
 impl Goomba {
     pub fn create(x: f32, y: f32) -> Self {
-        let mut obj = game::Block::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, false, &Path::new("src/scenes/game/assets/images/goomba1.png"), "goomba");
+        let mut obj = game::Block::create(0.0, 0.0, 16.0/240.0, 16.0/256.0, false, "src/scenes/game/assets/images/goomba1.png", "goomba", "goomba");
 
         let vert_shader = render::Shader::vertex_from_src(
             &CString::new(include_str!("assets/shaders/goomba.vert")).unwrap(),
@@ -158,7 +158,7 @@ impl Goomba {
     pub fn squash(&mut self) {
         let x = self.obj.x;
         let y = self.obj.y;
-        self.obj = game::Block::create(0.0, 0.0, 8.0/240.0, 16.0/256.0, false, &Path::new("src/scenes/game/assets/images/goomba_squash.png"), "goomba");
+        self.obj = game::Block::create(0.0, 0.0, 8.0/240.0, 16.0/256.0, false, "src/scenes/game/assets/images/goomba_squash.png", "goomba", "nill");
         self.obj.x = x;
         self.obj.y = y;
 
@@ -201,7 +201,7 @@ impl Flag {
         let mut textures: Vec<render::Texture> = vec![];
         let mut objects: Vec<render::Object> = vec![];
 
-        let stone = game::Block::create(x, y, 16.0/240.0, 16.0/256.0, false, &Path::new("src/scenes/game/assets/images/stone_up.png"), "flag");
+        let stone = game::Block::create(x, y, 16.0/240.0, 16.0/256.0, false, "src/scenes/game/assets/images/stone_up.png", "flag", "flag");
         
         let h = 16.0/240.0;
         let w = 16.0/256.0;
@@ -607,7 +607,7 @@ impl QuestionMarkBlock {
     pub fn handler(&mut self, objects: &mut Vec<game::Block>) {
         if self.collision_event {
             if self.collision_name == "mushroom" {
-                let mut obj = game::Block::create(0.0, 0.0, self.h, self.w, false, &Path::new("src/scenes/game/assets/images/mushroom.png"), "mushroom");
+                let mut obj = game::Block::create(0.0, 0.0, self.h, self.w, false, "src/scenes/game/assets/images/mushroom.png", "mushroom", "mushroom");
     
                 let vert_shader = render::Shader::vertex_from_src(
                     &CString::new(include_str!("assets/shaders/mushroom.vert")).unwrap(),
@@ -627,7 +627,7 @@ impl QuestionMarkBlock {
                 obj.move_acc_x = 1.0;
                 objects.push(obj);
             }else {
-                let mut block = game::Block::create(self.x, self.y+2.0*self.h, self.h, 8.0/256.0, true, &Path::new("src/scenes/game/assets/images/coin1.png"), "coin");
+                let mut block = game::Block::create(self.x, self.y+2.0*self.h, self.h, 8.0/256.0, true, "src/scenes/game/assets/images/coin1.png", "coin", "coin");
 
                 block.collision_name = "coin".to_string();
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin2.png")));
@@ -675,17 +675,9 @@ impl Collisioner for QuestionMarkBlock {
         &self.object_type
     }
     fn handle_collision(&mut self, collision_object: &String, collision_rect: Collision_rect, collisions: Vec<char>){}
-    fn get_collision(&mut self){
-        self.move_block = true; 
-        self.delay = 0;
-    }
+    fn get_collision(&mut self){}
     fn set_default_behavior(&mut self){}
-    fn run_default_behavior(&mut self, deltatime: u32){
-        if self.move_block == true {
-            self.y += 8.0/240.0;
-            self.move_block = false;
-        }
-    }
+    fn run_default_behavior(&mut self, deltatime: u32){}
 }
 
 impl Drawer for QuestionMarkBlock {
@@ -718,7 +710,6 @@ impl Drawer for QuestionMarkBlock {
 }
 
 pub struct Objects {
-    pub blocks: Vec<game::Block>,
     pub stones: Vec<game::Block>,
     pub pipes: Vec<Pipe>,
     pub flag: Vec<Flag>,
@@ -729,7 +720,6 @@ pub struct Objects {
 
 impl Objects {
     pub fn init() -> Self {
-        let blocks: Vec<game::Block> = vec![];
         let stones: Vec<game::Block> = vec![];
         let pipes: Vec<Pipe> = vec![];
         let flag: Vec<Flag> = vec![];
@@ -737,15 +727,15 @@ impl Objects {
         let coins: Vec<game::Block> = vec![];
         let goombas: Vec<Goomba> = vec![];
 
-        Self{blocks, stones, pipes, flag, castle, coins, goombas}
+        Self{stones, pipes, flag, castle, coins, goombas}
     }
 
     pub fn create_castle(&mut self, x: f32, y: f32, size: &str) {
         let block: game::Block;
         if size == "small" {
-            block = game::Block::create(x, y, 80.0/240.0, 80.0/256.0, false, &Path::new("src/scenes/game/assets/images/castle_small.png"), "castle");
+            block = game::Block::create(x, y, 80.0/240.0, 80.0/256.0, false, "src/scenes/game/assets/images/castle_small.png", "castle", "nill");
         }else {
-            block = game::Block::create(x, y, 80.0/240.0, 80.0/256.0, false, &Path::new("src/scenes/game/assets/images/castle_large.png"), "castle");
+            block = game::Block::create(x, y, 80.0/240.0, 80.0/256.0, false, "src/scenes/game/assets/images/castle_large.png", "castle", "nill");
         }
 
         self.castle.push(block);
@@ -758,7 +748,7 @@ impl Objects {
     }
 
     pub fn create_coin(&mut self, x: f32, y: f32) {
-        let mut block = game::Block::create(x, y, 16.0/240.0, 16.0/256.0, true, &Path::new("src/scenes/game/assets/images/coin_still1.png"), "coin");
+        let mut block = game::Block::create(x, y, 16.0/240.0, 16.0/256.0, true, "src/scenes/game/assets/images/coin_still1.png", "coin", "coin");
 
         block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_still2.png")));
         block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_still3.png")));
@@ -779,15 +769,9 @@ impl Objects {
     }
 
     pub fn create_stone(&mut self, x: f32, y: f32, h: f32, w: f32) {
-        let block = game::Block::create(x, y, h, w, false, &Path::new("src/scenes/game/assets/images/stone_up.png"), "stone");
+        let block = game::Block::create(x, y, h, w, false, "src/scenes/game/assets/images/stone_up.png", "stone", "stone");
 
         self.stones.push(block);
-    }
-
-    pub fn create_block(&mut self, x: f32, y: f32, h: f32, w: f32, collision_event: bool, path: &str) {
-        let block = game::Block::create(x, y, h, w, collision_event, &Path::new(path), "block");
-
-        self.blocks.push(block);
     }
 
     pub unsafe fn draw(&self) {
@@ -805,10 +789,6 @@ impl Objects {
 
         for pipe in self.pipes.iter() {
             pipe.draw();
-        }
-
-        for block in self.blocks.iter() {
-            block.draw();
         }
 
         for stone in self.stones.iter() {

@@ -6,45 +6,43 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 pub struct TileUnderground {
-    pub floor: Vec<game::Block>,
-    pub wall: Vec<game::Block>,
     pub pipe: objects::Pipe,
     pub objects: objects::Objects,
     pub delay: i32,
 }
 
 impl TileUnderground {
-    fn create() -> Self {
-        let mut floor: Vec<game::Block> = vec![];
-
+    fn create(
+        mut collisions_objects: &mut Vec<Rc<RefCell<dyn objects::Collisioner>>>,
+        mut objects_draw: &mut Vec<Rc<RefCell<dyn objects::Drawer>>>,
+    ) -> Self {
         for j in (1..=3).step_by(2)  {
             for i in (1..=32).step_by(2) {
-                let stone = game::Block::create(
+                let block = game::Block::create(
                     -1.0+((16.0/256.0)*i as f32), 
                     -1.0-((16.0/240.0)*(27+j) as f32), 
                     16.0/240.0, 
                     16.0/256.0,
                     false,
-                    &Path::new("src/scenes/game/assets/images/stone_underground.png"),
+                    "src/scenes/game/assets/images/stone_underground.png",
                     "block",
+                    "block"
                 );
-                floor.push(stone);
+                block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
             }
         }
-
-        let mut wall: Vec<game::Block> = vec![];
-
         for i in (6..=26).rev().step_by(2) {
-            let brick = game::Block::create(
+            let block = game::Block::create(
                 -1.0+(16.0/256.0), 
                 -1.0-((16.0/240.0)*i as f32), 
                 16.0/240.0, 
                 16.0/256.0,
                 false,
-                &Path::new("src/scenes/game/assets/images/brick_underground.png"),
+                "src/scenes/game/assets/images/brick_underground.png",
                 "block",
+                "block"
             );
-            wall.push(brick);
+            block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         }
 
         // TODO REFACTORIZE CODE
@@ -59,18 +57,10 @@ impl TileUnderground {
         let objects = objects::Objects::init();
         let delay = 0;
 
-        Self{floor, wall, pipe, objects, delay}
+        Self{pipe, objects, delay}
     }
 
     unsafe fn draw(&self) {
-        for stone in self.floor.iter() {
-            stone.draw()
-        }
-
-        for brick in self.wall.iter() {
-            brick.draw();
-        }
-
         self.pipe.draw();
 
         self.objects.draw();
@@ -112,8 +102,9 @@ impl Tile {
                         16.0/240.0, 
                         16.0/256.0,
                         false,
-                        &Path::new("src/scenes/game/assets/images/stone.png"),
+                        "src/scenes/game/assets/images/stone.png",
                         "block",
+                        "block"
                     );
                     let floor_brick_rc: Rc<RefCell<game::Block>> = Rc::new(RefCell::new(stone));
 
@@ -161,28 +152,34 @@ impl World {
         let mut tiles: Vec<Tile> = vec![];
         
         let mut tiles_underground: Vec<TileUnderground> = vec![];
-        let mut tile_underground1 = TileUnderground::create();
+        let mut tile_underground1 = TileUnderground::create(&mut collisions_objects, &mut objects_draw);
         for j in (1..=3).step_by(2)  {
             for i in (9..=21).step_by(2) {
-                tile_underground1.objects.create_block(
+                let block = game::Block::create(
                     -1.0+((16.0/256.0)*i as f32), 
                     -1.0-((16.0/240.0)*(23+j) as f32), 
                     16.0/240.0, 
                     16.0/256.0,
                     false,
                     "src/scenes/game/assets/images/brick_underground.png",
+                    "block",
+                    "block"
                 );
+                block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
             }
         }
         for i in (9..=21).step_by(2) {
-            tile_underground1.objects.create_block(
+            let block = game::Block::create(
                 -1.0+((16.0/256.0)*i as f32), 
                 -1.0-((16.0/240.0)*6 as f32), 
                 16.0/240.0, 
                 16.0/256.0,
                 false,
                 "src/scenes/game/assets/images/brick_underground.png",
+                "block_up",
+                "block_up"
             );
+            block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         }
         for i in (9..=21).step_by(2) {
             tile_underground1.objects.create_coin(
@@ -221,14 +218,17 @@ impl World {
             "coin".to_string(),
         );
         question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile2.objects.create_block(
+        let block = game::Block::create(
             -1.0+((16.0/256.0)*41 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
             16.0/256.0,
             true,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*43 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -238,14 +238,17 @@ impl World {
             "mushroom".to_string(),
         );
         question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile2.objects.create_block(
+        let block = game::Block::create(
             -1.0+((16.0/256.0)*45 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*45 as f32), 
             -1.0+((16.0/240.0)*19 as f32),
@@ -264,14 +267,17 @@ impl World {
             "coin".to_string(),
         );
         question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile2.objects.create_block(
+        let block = game::Block::create(
             -1.0+((16.0/256.0)*49 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tile2.objects.create_pipe(
             -1.0+((16.0/256.0)*58 as f32), 
             -1.0+((16.0/240.0)*7 as f32),
@@ -323,14 +329,17 @@ impl World {
         let floor_hole: Vec<i32> = vec![5, 6, 21, 22]; 
 
         let mut tile5 = Tile::create(tiles[3].last_drawpos+2, 5, tiles[3].bg_index, tiles[3].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile5.objects.create_block(
+        let block = game::Block::create(
             -1.0+((16.0/256.0)*155 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*157 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
@@ -340,38 +349,47 @@ impl World {
             "mushroom".to_string(),
         );
         question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile5.objects.create_block(
+        let block = game::Block::create(
             -1.0+((16.0/256.0)*159 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tiles.push(tile5);
 
         let floor_hole: Vec<i32> = vec![7, 8, 9, 23, 24, 25];
 
         let mut tile6 = Tile::create(tiles[4].last_drawpos+2, 6, tiles[4].bg_index, tiles[4].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         for i in (0..=7*2).step_by(2) {
-            tile6.objects.create_block(
+            let block = game::Block::create(
                 -1.0+((16.0/256.0)*((161+i) as f32)), 
                 -1.0+((16.0/240.0)*19 as f32),
                 16.0/240.0, 
                 16.0/256.0,
                 false,
                 "src/scenes/game/assets/images/brick.png",
+                "block_up",
+                "block_up"
             );
+            block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         }
         for i in (0..=2*2).step_by(2) {
-            tile6.objects.create_block(
+            let block = game::Block::create(
                 -1.0+((16.0/256.0)*((183+i) as f32)), 
                 -1.0+((16.0/240.0)*19 as f32),
                 16.0/240.0, 
                 16.0/256.0,
                 false,
                 "src/scenes/game/assets/images/brick.png",
+                "block_up",
+                "block_up"
             );
+            block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         }
         let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+((16.0/256.0)*189 as f32), 
@@ -382,37 +400,46 @@ impl World {
             "coin".to_string(),
         );
         question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile6.objects.create_block(
+        let mut block = game::Block::create(
             -1.0+((16.0/256.0)*(189 as f32)), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
             16.0/256.0,
             true,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
-        tile6.objects.blocks[11].collision_num = 10;
+        block.collision_num = 10;
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tiles.push(tile6);
 
         let floor_hole: Vec<i32> = vec![];
 
         let mut tile7 = Tile::create(tiles[5].last_drawpos+2, 7, tiles[5].bg_index, tiles[5].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile7.objects.create_block(
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(201 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
-        tile7.objects.create_block(
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let mut block = game::Block::create(
             -1.0+(16.0/256.0)*(203 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
             16.0/256.0,
             true,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
-        tile7.objects.blocks[1].collision_name = "star".to_string();
+        block.collision_name = "star".to_string();
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(213 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
@@ -454,37 +481,46 @@ impl World {
             "coin".to_string(),
         );
         question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile8.objects.create_block(
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(237 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         for i in (0..=2*2).step_by(2) {
-            tile8.objects.create_block(
+            let block = game::Block::create(
                 -1.0+(16.0/256.0)*((243+i) as f32), 
                 -1.0+(16.0/240.0)*(19 as f32),
                 16.0/240.0, 
                 16.0/256.0,
                 false,
                 "src/scenes/game/assets/images/brick.png",
+                "block_up",
+                "block_up"
             );
+            block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         }
         tiles.push(tile8);
 
         let floor_hole: Vec<i32> = vec![];
 
         let mut tile9 = Tile::create(tiles[7].last_drawpos+2, 9, tiles[7].bg_index, tiles[7].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile9.objects.create_block(
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(257 as f32), 
             -1.0+(16.0/240.0)*(19 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(259 as f32), 
             -1.0+(16.0/240.0)*(19 as f32),
@@ -503,30 +539,39 @@ impl World {
             "coin".to_string(),
         );
         question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile9.objects.create_block(
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(263 as f32), 
             -1.0+(16.0/240.0)*(19 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
-        tile9.objects.create_block(
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(259 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
-        tile9.objects.create_block(
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(261 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         for i in (0..=(3*2)).step_by(2) {
             for j in (0..=3*2-i).step_by(2) {
                 tile9.objects.create_stone(
@@ -595,22 +640,28 @@ impl World {
             true,
             false,
         );
-        tile11.objects.create_block(
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(337 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
-        tile11.objects.create_block(
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(339 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         let question_mark_block = objects::QuestionMarkBlock::create(
             -1.0+(16.0/256.0)*(341 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
@@ -620,14 +671,17 @@ impl World {
             "coin".to_string(),
         );
         question_mark_block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile11.objects.create_block(
+        let block = game::Block::create(
             -1.0+(16.0/256.0)*(343 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
             16.0/240.0, 
             16.0/256.0,
             false,
             "src/scenes/game/assets/images/brick.png",
+            "block_up",
+            "block_up"
         );
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tiles.push(tile11);
 
         let floor_hole: Vec<i32> = vec![];

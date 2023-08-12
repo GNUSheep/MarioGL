@@ -165,7 +165,7 @@ impl objects::Collisioner for Spirit {
         for collision in collisions.iter() {
             match collision {
                 &'b' => {
-                    if collision_object == "block" || collision_object == "?block" {
+                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" {
                         self.y = collision_rect.y+collision_rect.h+self.h-0.01;
                         if self.move_acc_y < 0 as f32 {
                             self.move_acc_y = 0.0;
@@ -174,19 +174,19 @@ impl objects::Collisioner for Spirit {
                     }
                 },
                 &'t' => {
-                    if collision_object == "block" || collision_object == "?block" {
+                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" {
                         self.y = collision_rect.y-collision_rect.h-self.h+0.01;
 
                         self.move_acc_y *= -1 as f32;
                     }
                 }
                 &'l' => {
-                    if collision_object == "block" || collision_object == "?block" {
+                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" {
                         self.x = collision_rect.x+collision_rect.w+self.w+0.01;
                     }
                 }
                 &'r' => {
-                    if collision_object == "block" || collision_object == "?block" {
+                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" {
                         self.x = collision_rect.x-collision_rect.w-self.w-0.01;
                     }
                 }
@@ -262,7 +262,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool, path: &Path, collision_name: &str) -> Self {
+    pub fn create(x: f32, y: f32, h: f32, w: f32, collision_event: bool, path: &str, collision_name: &str, object_type: &str) -> Self {
         let points: Vec<f32> = vec![
             w,  h, 0.0, 1.0, 0.0,
             w, -h, 0.0, 1.0, 1.0,
@@ -303,7 +303,21 @@ impl Block {
         let move_acc_y = 0.0;
         let move_acc_x = 0.0;
 
-        Self{x, y, w, h, object_type: "block".to_string(), move_acc_y, move_acc_x, collision_event, collision_name, collision_num, state, obj, textures, program} 
+        Self{x, y, w, h, object_type: object_type.to_string(), move_acc_y, move_acc_x, collision_event, collision_name, collision_num, state, obj, textures, program} 
+    }
+
+    pub fn attach_to_main_loop(
+        self,
+        mut collisions_objects: &mut Vec<Rc<RefCell<dyn objects::Collisioner>>>,
+        mut objects_draw: &mut Vec<Rc<RefCell<dyn objects::Drawer>>>,
+    ){
+        let block_rc: Rc<RefCell<Block>> = Rc::new(RefCell::new(self));
+
+        let block_drawer: Rc<RefCell<dyn objects::Drawer>> = block_rc.clone();
+        objects_draw.push(block_drawer);
+
+        let block_collisioner: Rc<RefCell<dyn Collisioner>> = block_rc.clone();
+        collisions_objects.push(block_collisioner);
     }
 
     pub fn check_hitbox(&self, obj: &Block) -> &str {
@@ -365,7 +379,7 @@ impl Block {
     pub fn handle(&mut self, objects: &mut Vec<Block>) {
         if self.collision_event && self.collision_num != 0 {
             if self.collision_name == "block".to_string() {
-                let mut block = Block::create(self.x, self.y+2.0*self.h, self.h, 8.0/256.0, true, &Path::new("src/scenes/game/assets/images/coin1.png"), "coin");
+                let mut block = Block::create(self.x, self.y+2.0*self.h, self.h, 8.0/256.0, true, "src/scenes/game/assets/images/coin1.png", "coin", "coin");
 
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin2.png")));
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin3.png")));
@@ -390,7 +404,7 @@ impl Block {
                 objects.push(block);
             }
             else if self.collision_name == "star".to_string() {
-                let mut block = Block::create(0.0, 0.0, self.h, self.w, true, &Path::new("src/scenes/game/assets/images/star1.png"), "star");
+                let mut block = Block::create(0.0, 0.0, self.h, self.w, true, "src/scenes/game/assets/images/star1.png", "star", "star");
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/star2.png")));
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/star3.png")));
                 block.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/star4.png")));
@@ -595,7 +609,7 @@ impl Game {
         //));
 //
         let mut hud = render::Texts::init();
-        let mut hud_coin_icon = Block::create(-1.0+(8.0/256.0)*23.0, 1.0-(8.0/240.0)*7.0, 8.0/240.0, 8.0/256.0, false, &Path::new("src/scenes/game/assets/images/coin_icon1.png"), "coin_icon");
+        let mut hud_coin_icon = Block::create(-1.0+(8.0/256.0)*23.0, 1.0-(8.0/240.0)*7.0, 8.0/240.0, 8.0/256.0, false, "src/scenes/game/assets/images/coin_icon1.png", "coin_icon", "nill");
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon2.png")));
         hud_coin_icon.textures.push(render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/coin_icon3.png")));
 
@@ -749,29 +763,6 @@ impl Game {
                 }
             }
 
-            for block in tile.objects.blocks.iter_mut() {
-                if sprt.check_hitbox(block) == "bottom" {
-                    sprt.y = block.y+block.h+sprt.h;
-                    if sprt.move_acc_y < 0 as f32 {
-                        sprt.move_acc_y = 0.0;
-                    }
-                    sprt.is_falling = false;
-                }else if sprt.check_hitbox(block) == "top" {
-                    sprt.y = block.y-block.h-sprt.w;
-
-                    if block.collision_name == "star" {
-                        block.handle(&mut self.objects_inmove);
-                    }else {
-                        block.handle(&mut self.objects_still);
-                    }
-                    sprt.move_acc_y = -1.0
-                }else if sprt.check_hitbox(block) == "left" {
-                    sprt.x = block.x+block.w+sprt.w+0.01;
-                }else if sprt.check_hitbox(block) == "right" {
-                    sprt.x = block.x-block.w-sprt.w-0.01;
-                }
-            }
-
             for pipe in tile.objects.pipes.iter() {
                 for obj in pipe.objects.iter() {
                     if sprt.check_hitbox_pipe(obj) == "bottom" {
@@ -819,37 +810,6 @@ impl Game {
         let mut index = 0;
         for tile in self.world.tiles_underground.iter() {
         let mut sprt = self.spirit.borrow_mut();
-            for stone in tile.wall.iter() {
-                if sprt.check_hitbox(stone) == "bottom" {
-                    sprt.y = stone.y+stone.h+sprt.h;
-                }
-                else if sprt.check_hitbox(stone) == "left" {
-                    sprt.x = stone.x+stone.w+sprt.w+0.01;
-                }
-                else if sprt.check_hitbox(stone) == "right" {
-                    sprt.x = stone.x-stone.w-sprt.w-0.01;
-                }
-            }
-
-            for stone in tile.objects.blocks.iter() {
-                if sprt.check_hitbox(stone) == "bottom" {
-                    sprt.y = stone.y+stone.h+sprt.h;
-                    if sprt.move_acc_y < 0 as f32 {
-                        sprt.move_acc_y = 0.0;
-                    }
-                    sprt.is_falling = false;
-                }
-                else if sprt.check_hitbox(stone) == "top" {
-                    sprt.y = stone.y-stone.h-sprt.w;
-                }
-                else if sprt.check_hitbox(stone) == "left" {
-                    sprt.x = stone.x+stone.w+sprt.w+0.01;
-                }
-                else if sprt.check_hitbox(stone) == "right" {
-                    sprt.x = stone.x-stone.w-sprt.w-0.01;
-                } 
-            }
-
             for obj in tile.pipe.objects.iter() {
                 if sprt.check_hitbox_pipe(obj) == "bottom" {
                     sprt.y = obj.y+obj.h+sprt.h;
@@ -967,25 +927,6 @@ impl Game {
                         goomba.obj.x = stone.x+stone.w+goomba.obj.w+0.01;
                     }else if goomba.obj.check_hitbox(stone) == "right" {
                         goomba.obj.x = stone.x-stone.w-goomba.obj.w-0.01;
-                    }
-                }
-    
-                for block in tile.objects.blocks.iter_mut() {
-                    if goomba.obj.check_hitbox(block) == "bottom" {
-                        goomba.obj.y = block.y+block.h+goomba.obj.h;
-                        if goomba.obj.move_acc_y < 0 as f32 {
-                            goomba.obj.move_acc_y = 0.0;
-                        }
-                        obj_falling = false;
-                    }else if goomba.obj.check_hitbox(block) == "left" {
-                        goomba.obj.x = block.x+block.w+goomba.obj.w+0.01;
-                    }else if goomba.obj.check_hitbox(block) == "right" {
-                        goomba.obj.x = block.x-block.w-goomba.obj.w-0.01;
-                    }
-                    
-                    if self.spirit.borrow_mut().check_hitbox(block) == "top" && goomba.obj.check_hitbox(block) == "bottom" {
-                        goomba.squash();
-                        goomba.delay = 0;
                     }
                 }
             }
@@ -1129,17 +1070,6 @@ impl Game {
                             }
                         }
                     }
-                    for block in tile.objects.blocks.iter_mut() {
-                        if obj.check_hitbox(block) == "bottom" {
-                            obj.y = block.y+block.h+obj.h;
-                            if obj.move_acc_y < 0 as f32 {
-                                obj.move_acc_y = 0.0;
-                            }
-                            obj_falling = false;
-                        }else if obj.check_hitbox(block) == "left" || obj.check_hitbox(block) == "right" {
-                            obj.move_acc_x *= -1 as f32;
-                        }
-                    }
                 }
                 
                 if self.spirit.borrow_mut().check_hitbox(obj) == "bottom" ||
@@ -1165,16 +1095,6 @@ impl Game {
                             }else if obj.check_hitbox_pipe(pipe_obj) == "right" || obj.check_hitbox_pipe(pipe_obj) == "left" {
                                 obj.move_acc_x *= -1 as f32;
                             }
-                        }
-                    }
-                    for block in tile.objects.blocks.iter_mut() {
-                        if obj.check_hitbox(block) == "bottom" {
-                            obj.y = block.y+block.h+obj.h;
-                            obj.move_acc_y = 3.0;
-                        }else if obj.check_hitbox(block) == "top" {
-                            obj.move_acc_y *= -1 as f32;
-                        }else if obj.check_hitbox(block) == "left" || obj.check_hitbox(block) == "right" {
-                            obj.move_acc_x *= -1 as f32;
                         }
                     }
                 }
