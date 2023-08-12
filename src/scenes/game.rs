@@ -165,7 +165,7 @@ impl objects::Collisioner for Spirit {
         for collision in collisions.iter() {
             match collision {
                 &'b' => {
-                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" {
+                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" || collision_object == "stone" {
                         self.y = collision_rect.y+collision_rect.h+self.h-0.01;
                         if self.move_acc_y < 0 as f32 {
                             self.move_acc_y = 0.0;
@@ -174,19 +174,19 @@ impl objects::Collisioner for Spirit {
                     }
                 },
                 &'t' => {
-                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" {
+                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" || collision_object == "stone" {
                         self.y = collision_rect.y-collision_rect.h-self.h+0.01;
 
                         self.move_acc_y *= -1 as f32;
                     }
                 }
                 &'l' => {
-                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" {
+                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" || collision_object == "stone" {
                         self.x = collision_rect.x+collision_rect.w+self.w+0.01;
                     }
                 }
                 &'r' => {
-                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" {
+                    if collision_object == "block" || collision_object == "?block" || collision_object == "block_up" || collision_object == "stone" {
                         self.x = collision_rect.x-collision_rect.w-self.w-0.01;
                     }
                 }
@@ -747,21 +747,6 @@ impl Game {
         let mut go_into_pipe = false;
         for tile in self.world.tiles.iter_mut() {
             let mut sprt = self.spirit.borrow_mut();
-            for stone in tile.objects.stones.iter() {
-                if sprt.check_hitbox(stone) == "bottom" {
-                    sprt.y = stone.y+stone.h+sprt.h;
-                    if sprt.move_acc_y < 0 as f32 {
-                        sprt.move_acc_y = 0.0;
-                    }
-                    sprt.is_falling = false;
-                }else if sprt.check_hitbox(stone) == "top" {
-                    sprt.y = stone.y-stone.h-sprt.w;
-                }else if sprt.check_hitbox(stone) == "left" {
-                    sprt.x = stone.x+stone.w+sprt.w+0.01;
-                }else if sprt.check_hitbox(stone) == "right" {
-                    sprt.x = stone.x-stone.w-sprt.w-0.01;
-                }
-            }
 
             for pipe in tile.objects.pipes.iter() {
                 for obj in pipe.objects.iter() {
@@ -913,20 +898,6 @@ impl Game {
                             goomba.obj.x = pipe_obj.x-pipe_obj.w-goomba.obj.w;
                             goomba.obj.move_acc_x = -1 as f32;
                         }
-                    }
-                }
-
-                for stone in tile.objects.stones.iter() {
-                    if goomba.obj.check_hitbox(stone) == "bottom" {
-                        goomba.obj.y = stone.y+stone.h+goomba.obj.h;
-                        if goomba.obj.move_acc_y < 0 as f32 {
-                            goomba.obj.move_acc_y = 0.0;
-                        }
-                        obj_falling = false;
-                    }else if goomba.obj.check_hitbox(stone) == "left" {
-                        goomba.obj.x = stone.x+stone.w+goomba.obj.w+0.01;
-                    }else if goomba.obj.check_hitbox(stone) == "right" {
-                        goomba.obj.x = stone.x-stone.w-goomba.obj.w-0.01;
                     }
                 }
             }

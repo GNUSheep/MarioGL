@@ -574,22 +574,32 @@ impl World {
         block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         for i in (0..=(3*2)).step_by(2) {
             for j in (0..=3*2-i).step_by(2) {
-                tile9.objects.create_stone(
+                let stone = game::Block::create(
                     -1.0+(16.0/256.0)*((275-i) as f32), 
                     -1.0+(16.0/240.0)*((5+j) as f32),
                     16.0/240.0, 
                     16.0/256.0,
+                    false, 
+                    "src/scenes/game/assets/images/stone_up.png",
+                    "stone",
+                    "stone",
                 );
+                stone.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
             }
         }
         for i in (0..=(3*2)).step_by(2) {
             for j in (0..=3*2-i).step_by(2) {
-                tile9.objects.create_stone(
+                let stone = game::Block::create(
                     -1.0+(16.0/256.0)*((281+i) as f32), 
                     -1.0+(16.0/240.0)*((5+j) as f32),
                     16.0/240.0, 
                     16.0/256.0,
+                    false, 
+                    "src/scenes/game/assets/images/stone_up.png",
+                    "stone",
+                    "stone",
                 );
+                stone.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
             }
         }
         tiles.push(tile9);
@@ -598,32 +608,47 @@ impl World {
 
         let mut tile10 = Tile::create(tiles[8].last_drawpos+2, 10, tiles[8].bg_index, tiles[8].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
         for i in (0..=3*2).step_by(2) {
-            tile10.objects.create_stone(
+            let stone = game::Block::create(
                 -1.0+(16.0/256.0)*(305 as f32), 
                 -1.0+(16.0/240.0)*((5+i) as f32),
                 16.0/240.0, 
                 16.0/256.0,
+                false, 
+                "src/scenes/game/assets/images/stone_up.png",
+                "stone",
+                "stone",
             );
+            stone.attach_to_main_loop(&mut collisions_objects, &mut objects_draw)
         }
         for i in (0..=(3*2)).step_by(2) {
             for j in (0..=3*2-i).step_by(2) {
-                tile10.objects.create_stone(
+                let stone = game::Block::create(
                     -1.0+(16.0/256.0)*((303-i) as f32), 
                     -1.0+(16.0/240.0)*((5+j) as f32),
                     16.0/240.0, 
                     16.0/256.0,
+                    false, 
+                "src/scenes/game/assets/images/stone_up.png",
+                "stone",
+                "stone",
                 );
+                stone.attach_to_main_loop(&mut collisions_objects, &mut objects_draw)
             }
         }
 
         for i in (0..=(3*2)).step_by(2) {
             for j in (0..=3*2-i).step_by(2) {
-                tile10.objects.create_stone(
+                let stone = game::Block::create(
                     -1.0+(16.0/256.0)*((311+i) as f32), 
                     -1.0+(16.0/240.0)*((5+j) as f32),
                     16.0/240.0, 
                     16.0/256.0,
+                    false, 
+                "src/scenes/game/assets/images/stone_up.png",
+                "stone",
+                "stone",
                 );
+                stone.attach_to_main_loop(&mut collisions_objects, &mut objects_draw)
             }
         }
         tiles.push(tile10);
@@ -697,21 +722,31 @@ impl World {
             false,
         );
         for i in (0..=7*2).step_by(2) {
-            tile12.objects.create_stone(
+            let stone = game::Block::create(
                 -1.0+(16.0/256.0)*(379 as f32), 
                 -1.0+(16.0/240.0)*((5+i) as f32),
                 16.0/240.0, 
                 16.0/256.0,
+                false, 
+                "src/scenes/game/assets/images/stone_up.png",
+                "stone",
+                "stone",
             );
+            stone.attach_to_main_loop(&mut collisions_objects, &mut objects_draw)
         }
         for i in (0..=(8*2)).step_by(2) {
             for j in (0..=7*2-i).step_by(2) {
-                tile12.objects.create_stone(
+                let stone = game::Block::create(
                     -1.0+(16.0/256.0)*((377-i) as f32), 
                     -1.0+(16.0/240.0)*((5+j) as f32),
                     16.0/240.0, 
                     16.0/256.0,
+                    false, 
+                "src/scenes/game/assets/images/stone_up.png",
+                "stone",
+                "stone",
                 );
+                stone.attach_to_main_loop(&mut collisions_objects, &mut objects_draw)
             }
         }
         tiles.push(tile12);

@@ -710,24 +710,20 @@ impl Drawer for QuestionMarkBlock {
 }
 
 pub struct Objects {
-    pub stones: Vec<game::Block>,
     pub pipes: Vec<Pipe>,
     pub flag: Vec<Flag>,
     pub castle: Vec<game::Block>,
     pub coins: Vec<game::Block>,
-    pub goombas: Vec<Goomba>,
 }
 
 impl Objects {
     pub fn init() -> Self {
-        let stones: Vec<game::Block> = vec![];
         let pipes: Vec<Pipe> = vec![];
         let flag: Vec<Flag> = vec![];
         let castle: Vec<game::Block> = vec![];
         let coins: Vec<game::Block> = vec![];
-        let goombas: Vec<Goomba> = vec![];
 
-        Self{stones, pipes, flag, castle, coins, goombas}
+        Self{pipes, flag, castle, coins}
     }
 
     pub fn create_castle(&mut self, x: f32, y: f32, size: &str) {
@@ -739,12 +735,6 @@ impl Objects {
         }
 
         self.castle.push(block);
-    }
-
-    pub fn create_goomba(&mut self, x: f32, y: f32) {
-        let mut block = Goomba::create(x, y);
-
-        self.goombas.push(block);
     }
 
     pub fn create_coin(&mut self, x: f32, y: f32) {
@@ -768,12 +758,6 @@ impl Objects {
         self.pipes.push(block);
     }
 
-    pub fn create_stone(&mut self, x: f32, y: f32, h: f32, w: f32) {
-        let block = game::Block::create(x, y, h, w, false, "src/scenes/game/assets/images/stone_up.png", "stone", "stone");
-
-        self.stones.push(block);
-    }
-
     pub unsafe fn draw(&self) {
         for coin in self.coins.iter() {
             coin.draw();
@@ -789,15 +773,6 @@ impl Objects {
 
         for pipe in self.pipes.iter() {
             pipe.draw();
-        }
-
-        for stone in self.stones.iter() {
-            stone.draw();
-        }
-
-        for goomba in self.goombas.iter() {
-            goomba.program.set_active();
-            goomba.draw();
         }
     }
 }
