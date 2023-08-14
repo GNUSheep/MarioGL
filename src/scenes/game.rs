@@ -748,28 +748,6 @@ impl Game {
         for tile in self.world.tiles.iter_mut() {
             let mut sprt = self.spirit.borrow_mut();
 
-            for pipe in tile.objects.pipes.iter() {
-                for obj in pipe.objects.iter() {
-                    if sprt.check_hitbox_pipe(obj) == "bottom" {
-                        sprt.y = obj.y+obj.h+sprt.h;
-                        if sprt.move_acc_y < 0 as f32 {
-                            sprt.move_acc_y = 0.0;
-                        }
-                        sprt.is_falling = false;
-
-                        if sprt.is_crouch && pipe.is_collision {
-                            go_into_pipe = true;
-                        }
-                    }else if sprt.check_hitbox_pipe(obj) == "top" {
-                        sprt.y = obj.y-obj.h-sprt.w;
-                    }else if sprt.check_hitbox_pipe(obj) == "left" {
-                        sprt.x = obj.x+obj.w+sprt.w+0.01;
-                    }else if sprt.check_hitbox_pipe(obj) == "right" {
-                        sprt.x = obj.x-obj.w-sprt.w-0.01;
-                    }
-                }
-            }
-
             for flag in tile.objects.flag.iter() {
                 for obj in flag.objects.iter() {
                     if  sprt.check_hitbox_pipe(obj) == "bottom" || 
@@ -794,27 +772,7 @@ impl Game {
         let mut indexes_to_remove: Vec<usize> = vec![];
         let mut index = 0;
         for tile in self.world.tiles_underground.iter() {
-        let mut sprt = self.spirit.borrow_mut();
-            for obj in tile.pipe.objects.iter() {
-                if sprt.check_hitbox_pipe(obj) == "bottom" {
-                    sprt.y = obj.y+obj.h+sprt.h;
-                    if sprt.move_acc_y < 0 as f32 {
-                        sprt.move_acc_y = 0.0;
-                    }
-                    sprt.is_falling = false;
-                }else if sprt.check_hitbox_pipe(obj) == "top" {
-                    sprt.y = obj.y-obj.h-sprt.w;
-                }
-                else if sprt.check_hitbox_pipe(obj) == "left" {
-                    sprt.x = obj.x+obj.w+sprt.w+0.01;
-                }
-                else if sprt.check_hitbox_pipe(obj) == "right" {
-                    sprt.x = obj.x-obj.w-sprt.w-0.01;
-
-                    go_into_pipe = true;
-                }
-            }
-            
+        let mut sprt = self.spirit.borrow_mut();            
             for coin in tile.objects.coins.iter() {
                 if  sprt.check_hitbox(coin) == "bottom" ||
                     sprt.check_hitbox(coin) == "top" ||
@@ -886,22 +844,7 @@ impl Game {
         let mut indexes_to_remove: Vec<usize> = vec![];
         let mut index = 0;
         for goomba in self.goombas.iter_mut() {
-            let mut obj_falling = true;
-            for tile in self.world.tiles.iter_mut() {
-                for pipe in tile.objects.pipes.iter() {
-                    for pipe_obj in pipe.objects.iter() {
-                        if goomba.obj.check_hitbox_pipe(pipe_obj) == "left" {
-                            goomba.obj.x = pipe_obj.x+pipe_obj.w+goomba.obj.w;
-                            goomba.obj.move_acc_x = 1 as f32;
-                        }
-                        if goomba.obj.check_hitbox_pipe(pipe_obj) == "right" {
-                            goomba.obj.x = pipe_obj.x-pipe_obj.w-goomba.obj.w;
-                            goomba.obj.move_acc_x = -1 as f32;
-                        }
-                    }
-                }
-            }
-
+            let obj_falling = true;
             // TODO: goombas collision with eachother
 
             for troopa in self.troopas.iter() {
@@ -964,20 +907,6 @@ impl Game {
 
         for troopa in self.troopas.iter_mut() {
             let mut obj_falling = true;
-            for tile in self.world.tiles.iter_mut() {
-                for pipe in tile.objects.pipes.iter() {
-                    for pipe_obj in pipe.objects.iter() {
-                        if troopa.obj.check_hitbox_pipe(pipe_obj) == "right" {
-                            troopa.obj.x = pipe_obj.x+pipe_obj.w+troopa.obj.w;
-                            troopa.obj.move_acc_x = 1 as f32;
-                        }
-                        if troopa.obj.check_hitbox_pipe(pipe_obj) == "left" {
-                            troopa.obj.x = pipe_obj.x-pipe_obj.w-troopa.obj.w;
-                            troopa.obj.move_acc_x = -1 as f32;
-                        }
-                    }
-                }
-            }
 
             if self.spirit.borrow_mut().check_hitbox(&troopa.obj) == "bottom" && !self.spirit.borrow_mut().is_dead && !troopa.is_squash {
                 troopa.squash();
@@ -1033,15 +962,6 @@ impl Game {
             if obj.collision_name == "mushroom".to_string() {
                 let mut obj_falling = true;
                 obj.x += (deltatime as f32)*0.0008*obj.move_acc_x;
-                for tile in self.world.tiles.iter_mut() {
-                    for pipe in tile.objects.pipes.iter() {
-                        for pipe_obj in pipe.objects.iter() {
-                            if obj.check_hitbox_pipe(pipe_obj) == "right" || obj.check_hitbox_pipe(pipe_obj) == "left" {
-                                obj.move_acc_x *= -1 as f32;
-                            }
-                        }
-                    }
-                }
                 
                 if self.spirit.borrow_mut().check_hitbox(obj) == "bottom" ||
                     self.spirit.borrow_mut().check_hitbox(obj) == "top" ||
@@ -1057,18 +977,6 @@ impl Game {
             } else if obj.collision_name == "star".to_string() {
                 let mut obj_falling = true;
                 obj.x += (deltatime as f32)*0.0008*obj.move_acc_x;
-                for tile in self.world.tiles.iter_mut() {
-                    for pipe in tile.objects.pipes.iter() {
-                        for pipe_obj in pipe.objects.iter() {
-                            if obj.check_hitbox_pipe(pipe_obj) == "top" {
-                                obj.y = pipe_obj.y+pipe_obj.h+obj.h;
-                                obj.move_acc_y = 3.0;
-                            }else if obj.check_hitbox_pipe(pipe_obj) == "right" || obj.check_hitbox_pipe(pipe_obj) == "left" {
-                                obj.move_acc_x *= -1 as f32;
-                            }
-                        }
-                    }
-                }
                 
                 if self.spirit.borrow_mut().check_hitbox(obj) == "bottom" ||
                     self.spirit.borrow_mut().check_hitbox(obj) == "top" ||

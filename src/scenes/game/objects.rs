@@ -275,6 +275,7 @@ pub struct Pipe {
     pub y: f32,
     pub h: f32,
     pub w: f32,
+    pub object_type: String,
     with_enter: bool,
     pub is_collision: bool,
     pipe_len: usize,
@@ -284,7 +285,7 @@ pub struct Pipe {
 }
 
 impl Pipe {
-    pub fn create(x: f32, y: f32, h: f32, w: f32, pipe_len: usize, with_enter: bool, is_collision: bool) -> Self {
+    pub fn create_pipe(x: f32, y: f32, h: f32, w: f32, pipe_len: usize, with_enter: bool, is_collision: bool) -> Self {
         const INDCIES: [i32; 6] = [
             0, 1, 2,
             2, 3, 0
@@ -303,10 +304,10 @@ impl Pipe {
 
         if with_enter {
             let points: Vec<f32> = vec![
-                x+w, y+h, 0.0, 1.0, 0.0,
-                x+w, y-h, 0.0, 1.0, 1.0,
-                x, y-h, 0.0, 0.0, 1.0,
-                x, y+h, 0.0, 0.0, 0.0
+                w, h, 0.0, 1.0, 0.0,
+                w, -h, 0.0, 1.0, 1.0,
+                0.0, -h, 0.0, 0.0, 1.0,
+                0.0, h, 0.0, 0.0, 0.0
             ];
     
             let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_enter_right.png"));
@@ -316,10 +317,10 @@ impl Pipe {
             objects.push(obj);
     
             let points: Vec<f32> = vec![
-                x-w, y+h, 0.0, 1.0, 0.0,
-                x-w, y-h, 0.0, 1.0, 1.0,
-                x, y-h, 0.0, 0.0, 1.0,
-                x, y+h, 0.0, 0.0, 0.0
+                -w, h, 0.0, 1.0, 0.0,
+                -w, -h, 0.0, 1.0, 1.0,
+                0.0, -h, 0.0, 0.0, 1.0,
+                0.0, h, 0.0, 0.0, 0.0
             ];
     
             let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_enter_left.png"));
@@ -332,10 +333,10 @@ impl Pipe {
         let mut offset = 1.0;
         for _i in 1..=pipe_len {    
             let points: Vec<f32> = vec![
-                x+w, y-(offset*h), 0.0, 1.0, 0.0,
-                x+w, y-((offset+2.0)*h), 0.0, 1.0, 1.0,
-                x, y-((offset+2.0)*h), 0.0, 0.0, 1.0,
-                x, y-(offset*h), 0.0, 0.0, 0.0
+                w, -(offset*h), 0.0, 1.0, 0.0,
+                w, -((offset+2.0)*h), 0.0, 1.0, 1.0,
+                0.0, -((offset+2.0)*h), 0.0, 0.0, 1.0,
+                0.0, -(offset*h), 0.0, 0.0, 0.0
             ];
 
             let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_right.png"));
@@ -346,10 +347,10 @@ impl Pipe {
 
             
             let points: Vec<f32> = vec![
-                x-w, y-(offset*h), 0.0, 1.0, 0.0,
-                x-w, y-((offset+2.0)*h), 0.0, 1.0, 1.0,
-                x, y-((offset+2.0)*h), 0.0, 0.0, 1.0,
-                x, y-(offset*h), 0.0, 0.0, 0.0
+                -w, -(offset*h), 0.0, 1.0, 0.0,
+                -w, -((offset+2.0)*h), 0.0, 1.0, 1.0,
+                0.0, -((offset+2.0)*h), 0.0, 0.0, 1.0,
+                0.0, -(offset*h), 0.0, 0.0, 0.0
             ];
 
             let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/pipe_left.png"));
@@ -366,8 +367,8 @@ impl Pipe {
                 obj.set_vertex_attrib_pointers();
             }
         }
-        
-        Self{x, y, w, h, with_enter, is_collision, pipe_len, objects, textures, program} 
+
+        Self{x, y, w, h, object_type: "block_up".to_string(), with_enter, is_collision, pipe_len, objects, textures, program} 
     }
 
     pub fn create_sidepipe(x: f32, y: f32, h: f32, w: f32, mut pipe_len: usize) -> Self {
@@ -487,7 +488,7 @@ impl Pipe {
         textures.push(texture);
         objects.push(obj);
 
-        let pipe = Pipe::create(x+((16.0/256.0)*5 as f32), -1.0-((16.0/240.0)*(13-pipe_len) as f32), 16.0/240.0, 32.0/256.0, pipe_len, false, false);
+        let pipe = Pipe::create_pipe(x+((16.0/256.0)*5 as f32), -1.0-((16.0/240.0)*(13-pipe_len) as f32), 16.0/240.0, 32.0/256.0, pipe_len, false, false);
 
         textures.extend(pipe.textures);
         objects.extend(pipe.objects);
@@ -502,10 +503,76 @@ impl Pipe {
         let with_enter = true;
         let is_collision = true;
 
-        Self{x, y, w, h, with_enter, is_collision, pipe_len, objects, textures, program} 
+        Self{x, y, w, h, object_type: "side_pipe".to_string(), with_enter, is_collision, pipe_len, objects, textures, program} 
     }
 
-    pub unsafe fn draw(&self) {
+    pub fn attach_to_main_loop(
+        self,
+        mut collisions_objects: &mut Vec<Rc<RefCell<dyn Collisioner>>>,
+        mut objects_draw: &mut Vec<Rc<RefCell<dyn Drawer>>>,
+    ){
+        let x = self.x;
+        let y = self.y;
+        let w = self.w;
+        let h = self.h;
+        let len = self.pipe_len;
+        
+        let block = game::Block::create(x, y-h*len as f32, h+h*len as f32, w, false, "src/scenes/game/assets/images/red.png", "nill", "block_up");
+        block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+
+        let pipe_rc: Rc<RefCell<Pipe>> = Rc::new(RefCell::new(self));
+        
+        let pipe_drawer: Rc<RefCell<dyn Drawer>> = pipe_rc.clone();
+        objects_draw.push(pipe_drawer);
+        
+        let pipe_collisioner: Rc<RefCell<dyn Collisioner>> = pipe_rc.clone();
+        collisions_objects.push(pipe_collisioner);
+        
+
+    }
+}
+
+impl Collisioner for Pipe {
+    fn get_collision_rect(&self) -> Collision_rect {
+        Collision_rect{
+            x: self.x+100.0, 
+            y: self.y-self.h*self.pipe_len as f32, 
+            w: self.w, 
+            h: self.h+self.h*self.pipe_len as f32,
+        }
+    }
+    fn get_type(&self) -> &String {
+        &self.object_type
+    }
+    fn handle_collision(&mut self, collision_object: &String, collision_rect: Collision_rect, collisions: Vec<char>){}
+    fn get_collision(&mut self){}
+    fn set_default_behavior(&mut self){}
+    fn run_default_behavior(&mut self, deltatime: u32){}
+}
+
+impl Drawer for Pipe {
+    unsafe fn get_program(&self) -> &render::Program {
+        &self.program
+    }
+
+    unsafe fn set_uniforms(&self, view_x: f32, view_y: f32) {
+        let view = glm::mat4(1.0, 0.0, 0.0, view_x,
+            0.0, 1.0, 0.0, view_y,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0);
+        let cname = std::ffi::CString::new("view").expect("CString::new failed");
+        let view_loc = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+        let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+        let move_vel = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::Uniform2f(move_vel, self.x, self.y);
+    }
+
+    unsafe fn draw(&self) {
+        self.program.set_active();
         let mut add = 0;
         if self.with_enter {
             add = 2;
@@ -595,13 +662,13 @@ impl QuestionMarkBlock {
         mut collisions_objects: &mut Vec<Rc<RefCell<dyn Collisioner>>>,
         mut objects_draw: &mut Vec<Rc<RefCell<dyn Drawer>>>,
     ){
-        let question_mark_block_rc: Rc<RefCell<QuestionMarkBlock>> = Rc::new(RefCell::new(self));
+        let pipe_rc: Rc<RefCell<QuestionMarkBlock>> = Rc::new(RefCell::new(self));
 
-        let question_mark_block_drawer: Rc<RefCell<dyn Drawer>> = question_mark_block_rc.clone();
-        objects_draw.push(question_mark_block_drawer);
+        let pipe_drawer: Rc<RefCell<dyn Drawer>> = pipe_rc.clone();
+        objects_draw.push(pipe_drawer);
 
-        let question_mark_block_collisioner: Rc<RefCell<dyn Collisioner>> = question_mark_block_rc.clone();
-        collisions_objects.push(question_mark_block_collisioner);
+        let pipe_collisioner: Rc<RefCell<dyn Collisioner>> = pipe_rc.clone();
+        collisions_objects.push(pipe_collisioner);
     }
 
     pub fn handler(&mut self, objects: &mut Vec<game::Block>) {
@@ -710,7 +777,6 @@ impl Drawer for QuestionMarkBlock {
 }
 
 pub struct Objects {
-    pub pipes: Vec<Pipe>,
     pub flag: Vec<Flag>,
     pub castle: Vec<game::Block>,
     pub coins: Vec<game::Block>,
@@ -718,12 +784,11 @@ pub struct Objects {
 
 impl Objects {
     pub fn init() -> Self {
-        let pipes: Vec<Pipe> = vec![];
         let flag: Vec<Flag> = vec![];
         let castle: Vec<game::Block> = vec![];
         let coins: Vec<game::Block> = vec![];
 
-        Self{pipes, flag, castle, coins}
+        Self{flag, castle, coins}
     }
 
     pub fn create_castle(&mut self, x: f32, y: f32, size: &str) {
@@ -752,12 +817,6 @@ impl Objects {
         self.flag.push(block);
     }
 
-    pub fn create_pipe(&mut self, x: f32, y: f32, h: f32, w: f32, pipe_len: usize, with_enter: bool, is_collision: bool) {
-        let block = Pipe::create(x, y, h, w, pipe_len, with_enter, is_collision);
-
-        self.pipes.push(block);
-    }
-
     pub unsafe fn draw(&self) {
         for coin in self.coins.iter() {
             coin.draw();
@@ -769,10 +828,6 @@ impl Objects {
 
         for flag in self.flag.iter() {
             flag.draw();
-        }
-
-        for pipe in self.pipes.iter() {
-            pipe.draw();
         }
     }
 }

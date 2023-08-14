@@ -1,0 +1,64 @@
+   Compiling runnner v0.1.0 (/home/nepo/Documents/Code/runnner)
+error: expected one of `,`, `.`, `?`, `}`, or an operator, found `with_enter`
+   --> src/scenes/game/objects.rs:371:58
+    |
+371 |         Self{x, y, w, h, object_type: "pipe".to_string() with_enter, is_collision, pipe_len, objects, textures, program} 
+    |         ----                                            -^^^^^^^^^^ expected one of `,`, `.`, `?`, `}`, or an operator
+    |         |                                               |
+    |         while parsing this struct                       help: try adding a comma: `,`
+
+warning: unused import: `std::path::Path`
+ --> src/scenes/game/worlds.rs:4:5
+  |
+4 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `c_void`
+ --> src/scenes/game/background.rs:5:25
+  |
+5 | use std::ffi::{CString, c_void};
+  |                         ^^^^^^
+
+warning: unused import: `c_void`
+ --> src/scenes/game/objects.rs:4:25
+  |
+4 | use std::ffi::{CString, c_void};
+  |                         ^^^^^^
+
+warning: type `Collision_rect` should have an upper camel case name
+ --> src/scenes/game/objects.rs:8:12
+  |
+8 | pub struct Collision_rect {
+  |            ^^^^^^^^^^^^^^ help: convert the identifier to upper camel case: `CollisionRect`
+  |
+  = note: `#[warn(non_camel_case_types)]` on by default
+
+warning: unused import: `c_void`
+  --> src/scenes/game.rs:13:25
+   |
+13 | use std::ffi::{CString, c_void};
+   |                         ^^^^^^
+
+warning: unused import: `crate::scenes::game`
+ --> src/render.rs:8:5
+  |
+8 | use crate::scenes::game;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+error[E0063]: missing field `with_enter` in initializer of `Pipe`
+   --> src/scenes/game/objects.rs:371:9
+    |
+371 |         Self{x, y, w, h, object_type: "pipe".to_string() with_enter, is_collision, pipe_len, objects, textures, program} 
+    |         ^^^^ missing `with_enter`
+
+error[E0063]: missing field `object_type` in initializer of `Pipe`
+   --> src/scenes/game/objects.rs:506:9
+    |
+506 |         Self{x, y, w, h, with_enter, is_collision, pipe_len, objects, textures, program} 
+    |         ^^^^ missing `object_type`
+
+For more information about this error, try `rustc --explain E0063`.
+warning: `runnner` (bin "runnner") generated 6 warnings
+error: could not compile `runnner` (bin "runnner") due to 3 previous errors; 6 warnings emitted

@@ -6,7 +6,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 pub struct TileUnderground {
-    pub pipe: objects::Pipe,
     pub objects: objects::Objects,
     pub delay: i32,
 }
@@ -53,16 +52,15 @@ impl TileUnderground {
             16.0/256.0,
             9,
         );
-        
+        pipe.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+
         let objects = objects::Objects::init();
         let delay = 0;
 
-        Self{pipe, objects, delay}
+        Self{objects, delay}
     }
 
     unsafe fn draw(&self) {
-        self.pipe.draw();
-
         self.objects.draw();
     }
 }
@@ -278,7 +276,7 @@ impl World {
             "block_up"
         );
         block.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
-        tile2.objects.create_pipe(
+        let pipe = objects::Pipe::create_pipe(
             -1.0+((16.0/256.0)*58 as f32), 
             -1.0+((16.0/240.0)*7 as f32),
             16.0/240.0, 
@@ -287,12 +285,13 @@ impl World {
             true,
             false,
         );
+        pipe.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tiles.push(tile2);
 
         let floor_hole: Vec<i32> = vec![]; 
 
         let mut tile3 = Tile::create(tiles[1].last_drawpos+2, 3, tiles[1].bg_index, tiles[1].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile3.objects.create_pipe(
+        let pipe = objects::Pipe::create_pipe(
             -1.0+((16.0/256.0)*78 as f32), 
             -1.0+((16.0/240.0)*9 as f32),
             16.0/240.0, 
@@ -301,7 +300,8 @@ impl World {
             true,
             false,
         );
-        tile3.objects.create_pipe(
+        pipe.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
+        let pipe = objects::Pipe::create_pipe(
             -1.0+((16.0/256.0)*94 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
@@ -310,12 +310,13 @@ impl World {
             true,
             false,
         );
+        pipe.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tiles.push(tile3);
 
         let floor_hole: Vec<i32> = vec![]; 
 
         let mut tile4 = Tile::create(tiles[2].last_drawpos+2, 4, tiles[2].bg_index, tiles[2].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile4.objects.create_pipe(
+        let pipe = objects::Pipe::create_pipe(
             -1.0+((16.0/256.0)*116 as f32), 
             -1.0+((16.0/240.0)*11 as f32),
             16.0/240.0, 
@@ -324,6 +325,7 @@ impl World {
             true,
             true,
         );
+        pipe.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         tiles.push(tile4);
 
         let floor_hole: Vec<i32> = vec![5, 6, 21, 22]; 
@@ -656,7 +658,7 @@ impl World {
         let floor_hole: Vec<i32> = vec![];
 
         let mut tile11 = Tile::create(tiles[9].last_drawpos+2, 11, tiles[9].bg_index, tiles[9].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile11.objects.create_pipe(
+        let pipe = objects::Pipe::create_pipe(
             -1.0+(16.0/256.0)*(328 as f32), 
             -1.0+(16.0/240.0)*(7 as f32),
             16.0/240.0, 
@@ -665,6 +667,7 @@ impl World {
             true,
             false,
         );
+        pipe.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         let block = game::Block::create(
             -1.0+(16.0/256.0)*(337 as f32), 
             -1.0+(16.0/240.0)*(11 as f32),
@@ -712,7 +715,7 @@ impl World {
         let floor_hole: Vec<i32> = vec![];
 
         let mut tile12 = Tile::create(tiles[10].last_drawpos+2, 12, tiles[10].bg_index, tiles[10].move_by, floor_hole, &mut collisions_objects, &mut objects_draw);
-        tile12.objects.create_pipe(
+        let pipe = objects::Pipe::create_pipe(
             -1.0+(16.0/256.0)*(360 as f32), 
             -1.0+(16.0/240.0)*(7 as f32),
             16.0/240.0, 
@@ -721,6 +724,7 @@ impl World {
             true,
             false,
         );
+        pipe.attach_to_main_loop(&mut collisions_objects, &mut objects_draw);
         for i in (0..=7*2).step_by(2) {
             let stone = game::Block::create(
                 -1.0+(16.0/256.0)*(379 as f32), 
