@@ -745,22 +745,6 @@ impl Game {
         }
 
         let mut go_into_pipe = false;
-        for tile in self.world.tiles.iter_mut() {
-            let mut sprt = self.spirit.borrow_mut();
-
-            for flag in tile.objects.flag.iter() {
-                for obj in flag.objects.iter() {
-                    if  sprt.check_hitbox_pipe(obj) == "bottom" || 
-                    sprt.check_hitbox_pipe(obj) == "top" ||
-                    sprt.check_hitbox_pipe(obj) == "left" ||
-                    sprt.check_hitbox_pipe(obj) == "right"  
-                    { 
-                        self.is_endlvl = true;
-                        sprt.delay = 0;
-                    }
-                }
-            }
-        }
         
         if go_into_pipe {
             self.spirit.borrow_mut().is_crouch = false;
@@ -944,7 +928,6 @@ impl Game {
             if troopa.to_move_squash {
                 troopa.obj.x += (deltatime as f32)*0.002*troopa.obj.move_acc_x;
             }
-
 
             if troopa.delay >= 10 && !troopa.is_squash {
                 troopa.state += 1;
@@ -1153,6 +1136,7 @@ impl Game {
     pub unsafe fn draw(&mut self) {
         if !self.is_over {
             self.world.draw();
+
             for obj_ref in self.objects_draw.iter() {
                 let obj = obj_ref.as_ref().borrow();
                 obj.set_uniforms(self.screen_move_x, self.screen_move_y);

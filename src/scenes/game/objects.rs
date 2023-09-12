@@ -5,6 +5,13 @@ use std::ffi::{CString, c_void};
 use std::rc::Rc;
 use std::cell::RefCell;
 
+pub fn overlap(a: &Collision_rect, b: &Collision_rect) -> bool {
+    return a.bottom() > b.top()
+    && a.top() < b.bottom()
+    && a.right() > b.left()
+    && a.left() < b.right();
+}
+
 pub struct Collision_rect {
     pub x: f32,
     pub y: f32,
@@ -41,6 +48,32 @@ impl Collision_rect {
             else if intersection.0 < 0.0 {collisions.push('r')}
         }
         return collisions;
+    }
+
+    fn bottom(&self) -> f32 {
+        self.y-self.h
+    }
+
+    fn top(&self) -> f32 {
+        self.y+self.h
+    }
+
+    fn left(&self) -> f32 {
+        self.x-self.w
+    }
+
+    fn right(&self) -> f32 {
+        self.x+self.w
+    }
+
+    pub fn check_hitbox_new(&self, b: Collision_rect) {
+        if overlap(&Collision_rect{x: self.x, y: self.y, w: self.w, h: self.h}, &b) {
+            println!("BOTTOM");
+            if self.top() < b.bottom() {
+            }else if self.bottom() < b.top() {
+                println!("TOP");
+            }
+        }
     }
 }
 
@@ -177,14 +210,16 @@ impl Goomba {
 pub struct Flag {
     x: f32,
     y: f32,
-    stone: game::Block,
+    h: f32,
+    w: f32,
+    object_type: String,
     pub objects: Vec<render::Object>,
     textures: Vec<render::Texture>,
     program: render::Program,
 }
 
 impl Flag {
-    fn create(x: f32, y: f32) -> Self {
+    pub fn create(x: f32, y: f32) -> Self {
         const INDCIES: [i32; 6] = [
             0, 1, 2,
             2, 3, 0
@@ -200,23 +235,20 @@ impl Flag {
 
         let mut textures: Vec<render::Texture> = vec![];
         let mut objects: Vec<render::Object> = vec![];
-
-        let stone = game::Block::create(x, y, 16.0/240.0, 16.0/256.0, false, "src/scenes/game/assets/images/stone_up.png", "flag", "flag");
         
         let h = 16.0/240.0;
         let w = 16.0/256.0;
         let mut offset = 1.0;
         for _i in 0..=8 {
             let points: Vec<f32> = vec![
-                x+w, y+(offset*h), 0.0, 1.0, 0.0,
-                x+w, y+((offset+2.0)*h), 0.0, 1.0, 1.0,
-                x-w, y+((offset+2.0)*h), 0.0, 0.0, 1.0,
-                x-w, y+(offset*h), 0.0, 0.0, 0.0
+                w, (offset*h), 0.0, 1.0, 0.0,
+                w, ((offset+2.0)*h), 0.0, 1.0, 1.0,
+                -w, ((offset+2.0)*h), 0.0, 0.0, 1.0,
+                -w, (offset*h), 0.0, 0.0, 0.0
             ];
 
             let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/flag_pipe.png"));
             let mut obj = render::Object::create_square_with_points(points, INDCIES);
-            obj.set_cordinates(x, y+((offset+1.0)*h), 16.0/240.0, 16.0/256.0);
             textures.push(texture);
             objects.push(obj);
 
@@ -226,10 +258,10 @@ impl Flag {
         offset -= 2.0;
 
         let points: Vec<f32> = vec![
-            x, y+(offset*h), 0.0, 1.0, 0.0,
-            x, y+((offset+2.0)*h), 0.0, 1.0, 1.0,
-            x-(2.0*w), y+((offset+2.0)*h), 0.0, 0.0, 1.0,
-            x-(2.0*w), y+(offset*h), 0.0, 0.0, 0.0
+            0.0, (offset*h), 0.0, 1.0, 0.0,
+            0.0, ((offset+2.0)*h), 0.0, 1.0, 1.0,
+            -(2.0*w), ((offset+2.0)*h), 0.0, 0.0, 1.0,
+            -(2.0*w), (offset*h), 0.0, 0.0, 0.0
         ];
 
         let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/flag.png"));
@@ -240,10 +272,10 @@ impl Flag {
         offset += 2.0;
 
         let points: Vec<f32> = vec![
-            x+w, y+(offset*h), 0.0, 1.0, 0.0,
-            x+w, y+((offset+2.0)*h), 0.0, 1.0, 1.0,
-            x-w, y+((offset+2.0)*h), 0.0, 0.0, 1.0,
-            x-w, y+(offset*h), 0.0, 0.0, 0.0
+            w, (offset*h), 0.0, 1.0, 0.0,
+            w, ((offset+2.0)*h), 0.0, 1.0, 1.0,
+            -w, ((offset+2.0)*h), 0.0, 0.0, 1.0,
+            -w, (offset*h), 0.0, 0.0, 0.0
         ];
 
         let texture = render::Texture::create_new_texture_from_file(&Path::new("src/scenes/game/assets/images/flag_ball.png"));
@@ -257,11 +289,65 @@ impl Flag {
             }
         }
 
-        Self{x, y, stone, objects, textures, program}
+        Self{x, y, h, w, object_type: "flag".to_string(), objects, textures, program}
     }
 
-    pub unsafe fn draw(&self) {
-        self.stone.draw();
+    pub fn attach_to_main_loop(
+        self,
+        mut collisions_objects: &mut Vec<Rc<RefCell<dyn Collisioner>>>,
+        mut objects_draw: &mut Vec<Rc<RefCell<dyn Drawer>>>,
+    ){
+        let flag_rc: Rc<RefCell<Flag>> = Rc::new(RefCell::new(self));
+        
+        let flag_drawer: Rc<RefCell<dyn Drawer>> = flag_rc.clone();
+        objects_draw.push(flag_drawer);
+        
+        let flag_collisioner: Rc<RefCell<dyn Collisioner>> = flag_rc.clone();
+        collisions_objects.push(flag_collisioner);
+    }
+}
+
+impl Collisioner for Flag {
+    fn get_collision_rect(&self) -> Collision_rect {
+        Collision_rect{
+            x: self.x, 
+            y: self.y, 
+            w: self.w, 
+            h: self.h,
+        }
+    }
+    fn get_type(&self) -> &String {
+        &self.object_type
+    }
+    fn handle_collision(&mut self, collision_object: &String, collision_rect: Collision_rect, collisions: Vec<char>){}
+    fn get_collision(&mut self){}
+    fn set_default_behavior(&mut self){}
+    fn run_default_behavior(&mut self, deltatime: u32){}
+}
+
+impl Drawer for Flag {
+    unsafe fn get_program(&self) -> &render::Program {
+        &self.program
+    }
+
+    unsafe fn set_uniforms(&self, view_x: f32, view_y: f32) {
+        let view = glm::mat4(1.0, 0.0, 0.0, view_x,
+            0.0, 1.0, 0.0, view_y,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0);
+        let cname = std::ffi::CString::new("view").expect("CString::new failed");
+        let view_loc = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+        let cname = std::ffi::CString::new("movePos").expect("CString::new failed");
+        let move_vel = gl::GetUniformLocation(self.program.program, cname.as_ptr());
+        self.program.set_active();
+        gl::Uniform2f(move_vel, self.x, self.y);
+    }
+
+    unsafe fn draw(&self) {
+        self.program.set_active();
         for i in 0..=self.objects.len()-1 {
             gl::BindTexture(gl::TEXTURE_2D, self.textures[i].texture);
             gl::BindVertexArray(self.objects[i].vao);
@@ -777,29 +863,14 @@ impl Drawer for QuestionMarkBlock {
 }
 
 pub struct Objects {
-    pub flag: Vec<Flag>,
-    pub castle: Vec<game::Block>,
     pub coins: Vec<game::Block>,
 }
 
 impl Objects {
     pub fn init() -> Self {
-        let flag: Vec<Flag> = vec![];
-        let castle: Vec<game::Block> = vec![];
         let coins: Vec<game::Block> = vec![];
 
-        Self{flag, castle, coins}
-    }
-
-    pub fn create_castle(&mut self, x: f32, y: f32, size: &str) {
-        let block: game::Block;
-        if size == "small" {
-            block = game::Block::create(x, y, 80.0/240.0, 80.0/256.0, false, "src/scenes/game/assets/images/castle_small.png", "castle", "nill");
-        }else {
-            block = game::Block::create(x, y, 80.0/240.0, 80.0/256.0, false, "src/scenes/game/assets/images/castle_large.png", "castle", "nill");
-        }
-
-        self.castle.push(block);
+        Self{coins}
     }
 
     pub fn create_coin(&mut self, x: f32, y: f32) {
@@ -810,24 +881,10 @@ impl Objects {
 
         self.coins.push(block);
     }
-    
-    pub fn create_flag(&mut self, x: f32, y: f32) {
-        let block = Flag::create(x, y);
-
-        self.flag.push(block);
-    }
 
     pub unsafe fn draw(&self) {
         for coin in self.coins.iter() {
             coin.draw();
-        }
-
-        for castle in self.castle.iter() {
-            castle.draw();
-        }
-
-        for flag in self.flag.iter() {
-            flag.draw();
         }
     }
 }
